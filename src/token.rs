@@ -59,6 +59,7 @@ pub struct Token {
     pub token_type: TokenType,
     pub literal: String,
 }
+
 pub fn get_identifier(ident: &str) -> TokenType {
   let mut keyword_map: HashMap<String, TokenType> = HashMap::new();
   keyword_map.insert("let".to_string(), TokenType::LET);

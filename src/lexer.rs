@@ -1,4 +1,3 @@
-use std::char::from_u32;
 use crate::token::{Token, TokenType, get_identifier};
 
 #[derive(Default, Debug)]
@@ -25,7 +24,6 @@ impl Lexer {
         self.skip_whitespaces();
 
         let ch = String::from_utf8(vec![self.ch]).unwrap();
-
 
         match self.ch as char {
             '=' => { 
