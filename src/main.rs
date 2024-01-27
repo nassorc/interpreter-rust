@@ -1,162 +1,166 @@
 #![allow(unused)]
 
 mod token;
-mod lexer;
+use std::{arch::x86_64::_MM_FROUND_NO_EXC, io};
 
-use std::borrow::BorrowMut;
-use std::any::Any;
-use std::fs;
-use std::io;
-use lexer::Lexer;
 use token::Token;
 
-use crate::token::TokenType;
-
-trait Node {
-  fn token_literal(&self) -> &str;
-}
-
-trait Statement : Node {
-  fn statement_node(&self);
-}
-trait Expression : Node {
-  fn expression_node(&self);
-}
-
-struct Program {
-  statements: Vec<Box<dyn Any>>
-}
-
-impl Program {
-  fn token_literal(&self) -> &str {
-    if self.statements.len() > 0 {
-      return self.statements[0].downcast_ref::<Box<dyn Statement>>().unwrap().token_literal();
-    }
-    return "";
-  }
-}
-
-// let a = 10
-// type identifier assign value
-struct LetStatement {
-  token: Token,
-  name: Box<Identifier>,
-  value: Box<dyn Expression>
-} 
-
-struct Identifier {
-  token: Token,
-  value: String
-}
-
-impl Node for Identifier {
-  fn token_literal(&self) -> &str {
-    return &self.token.literal;
-  }
-}
-impl Expression for Identifier {
-  fn expression_node(&self) {
-  }
-}
-
-impl Node for LetStatement {
-  fn token_literal(&self) -> &str {
-    return "let";
-  }
-}
-impl Statement for LetStatement {
-  fn statement_node(&self) {}
-}
-
-struct IntExpression {
-  token: Token,
-  value: i32
-}
-
-impl Node for IntExpression {
-  fn token_literal(&self) -> &str {
-    return &self.token.literal;
-  }
-}
-
-impl Expression for IntExpression {
-  fn expression_node(&self) {
-  }
-}
-
-struct Parser<'a> {
-  l: &'a mut Lexer,
-
-  current_token: Token,
-  peek_token: Token
-}
-
-impl<'a> Parser<'a> {
-  fn new(l: &'a mut Lexer) -> Self {
-    Self {
-      l: l,
-      current_token: Token {
-        token_type: TokenType::EOF,
-        literal: "".to_string()
-      },
-      peek_token: Token {
-        token_type: TokenType::EOF,
-        literal: "".to_string()
-      }
-    }
-  }
-}
-
 fn main() -> Result<(), io::Error> {
+    // let l = Lexer::new("let a = 10;");
+    
+    // let mut p = Parser::new(l);
 
-    let mut lexer1 = Lexer::new("let a = 10;");
+    let l = LetStatement{};
 
-    let mut parser1 = Parser::new(&mut lexer1);
+    let stms: Vec<Box<dyn Node>> = Vec::new();
 
-    let expect_let = parser1.l.next_token();
-
-    dbg!(expect_let);
-    println!("========");
-
-
-    let mut program = Program {
-      statements: vec![]
-    };
-    let i1 = IntExpression {
-      token: Token {
-        token_type: TokenType::INT,
-        literal: "5".to_string()
-      },
-      value: 5
-    };
-    let mut n1 = Identifier {
-        token: Token {
-          literal: "myInt".to_string(),
-          token_type: TokenType::IDENTIFIER
-        },
-        value: "myInt".to_string()
-      };
-
-    let l1 = Box::new(LetStatement{
-      token: Token {
-        token_type: TokenType::LET,
-        literal: "let".to_string()
-      },
-      name: Box::new(n1),
-      value: Box::new(IntExpression {
-        token: Token { token_type: TokenType::INT, literal: "5".to_string() },
-        value: 5
-      })
-    });
-
-    let mut l = Lexer::new("let == fn 10,");
-
-    let c = l.next_token();
-    dbg!(&c);
-    let c = l.next_token();
-    dbg!(&c);
-    let c = l.next_token();
-    dbg!(&c);
     Ok(())
 }
 
+trait Node {
+    fn to_string(&self) -> String;
+    fn to_literal(&self) -> String;
+}
+
+trait StatementNode {}
+trait ExpressionNode {}
+
+struct LetStatement {}
+
+impl Node for LetStatement {
+    fn to_string(&self) -> String {
+        "let statement".to_owned()
+    }
+    fn to_literal(&self) -> String {
+        "let statement literal".to_owned()
+    }
+}
+
+#[derive(Debug)]
+struct Lexer {
+    input: String,
+    ch: char,
+    position: usize,
+    read_position: usize,
+}
+
+impl Lexer {
+    fn new(input: &str) -> Self {
+        let mut l = Self {
+            input: input.to_string(),
+            ch: 0 as char,
+            position: 0,
+            read_position: 0,
+        };
+        l.read_char();
+        return l;
+    }
+
+    fn next_token(&mut self) -> token::Token {
+        let mut tmp = [0; 4];
+        let tk: token::Token;
+
+        self.skip_whitespace();
+
+        match self.ch {
+            '=' => {
+                tk = self.new_token(token::ASSIGN, self.ch.encode_utf8(&mut tmp))
+            },
+            '+' => {
+                tk = self.new_token(token::PLUS, self.ch.encode_utf8(&mut tmp))
+            },
+            '-' => {
+                tk = self.new_token(token::MINUS, self.ch.encode_utf8(&mut tmp))
+            },
+            ';' => {
+                tk = self.new_token(token::SEMICOLON, self.ch.encode_utf8(&mut tmp))
+            },
+            '\0' => {
+                tk = self.new_token(token::EOF, self.ch.encode_utf8(&mut tmp))
+            },
+            _ => {
+                if self.is_letter() {
+                    let identifier = self.read_identifier();
+                    let token_type = token::get_identifier(&identifier);
+                    return self.new_token(token_type, &identifier);
+                } 
+                else if self.is_digit() {
+                    let number = self.read_number();
+                    return self.new_token(token::INT, &number);
+                }
+                tk = token::Token::new(token::ILLEGAL, (0 as char).encode_utf8(&mut tmp))
+            }
+        }
+        self.read_char();
+        return tk;
+    }
+
+    fn read_char(&mut self) {
+        if self.read_position >= self.input.len() {
+            self.ch = 0 as char;
+        } else {
+            self.ch = self.input.as_bytes()[self.read_position] as char;
+        }
+        self.position = self.read_position;
+        self.read_position += 1;
+    }
+
+    fn read_identifier(&mut self) -> String {
+        let pos = self.position;
+        while self.is_letter() {
+            self.read_char();
+        }
+        self.input[pos..self.position].to_owned()
+    }
+
+    fn read_number(&mut self) -> String {
+        let pos = self.position;
+        while self.is_digit() {
+            self.read_char();
+        }
+        self.input[pos..self.position].to_owned()
+    }
+
+    fn new_token(&self, token_type: token::TokenType, literal: &str) -> token::Token {
+        token::Token::new(token_type, literal)
+    }
+
+    fn is_letter(&self) -> bool {
+        ('a' <= self.ch && self.ch <= 'z') || ('A' <= self.ch && self.ch <= 'Z') || (self.ch == '_')
+    }
+
+    fn is_digit(&self) -> bool {
+        ('0' <= self.ch && self.ch <= '9')
+    }
+
+    fn skip_whitespace(&mut self) {
+        while self.ch == ' ' || self.ch == '\t' || self.ch == '\n' || self.ch == '\r' {
+            self.read_char();
+        }
+    }
+}
+
+struct Parser {
+    l: Lexer,
+    cur_token: token::Token,
+    peek_token: token::Token,
+}
+
+impl Parser {
+
+    fn new(l: Lexer) -> Self {
+        let mut p = Self { 
+            l,
+            cur_token: token::Token::new(token::EOF, "\0"),
+            peek_token: token::Token::new(token::EOF, "\0"),
+        };
+        p.next_token();
+        p.next_token();
+        return p;
+    }
+
+    fn next_token(&mut self) {
+        self.cur_token = self.peek_token.clone();
+        self.peek_token = self.l.next_token();
+    }
+}
