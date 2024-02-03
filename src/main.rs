@@ -1,40 +1,81 @@
 #![allow(unused)]
 
 mod token;
-use std::{arch::x86_64::_MM_FROUND_NO_EXC, io};
-
 use token::Token;
 
-fn main() -> Result<(), io::Error> {
-    // let l = Lexer::new("let a = 10;");
-    
-    // let mut p = Parser::new(l);
+fn main() {
 
-    let l = LetStatement{};
+    let mut lexer = Lexer::new("let a + 1");
+    let mut parser = Parser::new(lexer);
 
-    let stms: Vec<Box<dyn Node>> = Vec::new();
+    parser.parse_program();
 
-    Ok(())
-}
+    let lt = LetStatement{
+        name: Identifier("myVar".to_string()),
+        value: ExpressionType::Int(Integer(99))
+    };
 
-trait Node {
-    fn to_string(&self) -> String;
-    fn to_literal(&self) -> String;
-}
+    let nodes: Vec<NodeType> = vec![NodeType::LetStatement(lt)];
 
-trait StatementNode {}
-trait ExpressionNode {}
-
-struct LetStatement {}
-
-impl Node for LetStatement {
-    fn to_string(&self) -> String {
-        "let statement".to_owned()
-    }
-    fn to_literal(&self) -> String {
-        "let statement literal".to_owned()
+    for node in &nodes {
+        eval(node.clone());
     }
 }
+
+struct Parser {
+    l: Lexer
+}
+
+impl Parser {
+    fn new(l: Lexer) -> Parser {
+        Parser { l }
+    }
+    fn parse_program(&mut self) -> Program {
+        Program { statements: vec![] }
+    }
+}
+
+fn eval(node: NodeType) {
+    match node {
+        NodeType::LetStatement(lt) => { 
+            if let ExpressionType::Int(i) = lt.value {
+                println!("{} = {}", lt.name.0, i.0);
+            }
+        },
+        _ => {}
+    }
+}
+
+#[derive(Clone)]
+struct Program {
+    statements: Vec<NodeType>
+}
+
+#[derive(Clone)]
+enum NodeType {
+    LetStatement(LetStatement),
+    ExpressionStatement(ExpressionType),
+}
+
+#[derive(Clone)]
+enum ExpressionType {
+    Ident(Identifier),
+    Int(Integer),
+    Nil
+}
+
+#[derive(Clone)]
+struct LetStatement {
+    name: Identifier,
+    value: ExpressionType
+}
+
+#[derive(Clone)]
+struct Identifier(String);
+
+
+#[derive(Clone)]
+struct Integer(i32);
 
 #[derive(Debug)]
 struct Lexer {
@@ -140,27 +181,27 @@ impl Lexer {
     }
 }
 
-struct Parser {
-    l: Lexer,
-    cur_token: token::Token,
-    peek_token: token::Token,
-}
+// struct Parser {
+//     l: Lexer,
+//     cur_token: token::Token,
+//     peek_token: token::Token,
+// }
 
-impl Parser {
+// impl Parser {
 
-    fn new(l: Lexer) -> Self {
-        let mut p = Self { 
-            l,
-            cur_token: token::Token::new(token::EOF, "\0"),
-            peek_token: token::Token::new(token::EOF, "\0"),
-        };
-        p.next_token();
-        p.next_token();
-        return p;
-    }
+//     fn new(l: Lexer) -> Self {
+//         let mut p = Self { 
+//             l,
+//             cur_token: token::Token::new(token::EOF, "\0"),
+//             peek_token: token::Token::new(token::EOF, "\0"),
+//         };
+//         p.next_token();
+//         p.next_token();
+//         return p;
+//     }
 
-    fn next_token(&mut self) {
-        self.cur_token = self.peek_token.clone();
-        self.peek_token = self.l.next_token();
-    }
-}
+//     fn next_token(&mut self) {
+//         self.cur_token = self.peek_token.clone();
+//         self.peek_token = self.l.next_token();
+//     }
+// }
