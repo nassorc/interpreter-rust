@@ -16,7 +16,7 @@ fn main() {
     };
     // changes in main
 
-    // d
+    // d 1 2
 
     let nodes: Vec<NodeType> = vec![NodeType::LetStatement(lt)];
 
