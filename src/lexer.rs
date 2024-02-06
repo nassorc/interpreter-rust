@@ -35,6 +35,9 @@ impl Lexer {
             '-' => {
                 tk = self.new_token(token::MINUS, self.ch.encode_utf8(&mut tmp))
             },
+            '!' => {
+                tk = self.new_token(token::BANG, self.ch.encode_utf8(&mut tmp))
+            },
             ';' => {
                 tk = self.new_token(token::SEMICOLON, self.ch.encode_utf8(&mut tmp))
             },

@@ -13,6 +13,7 @@ pub const LBRACE: &str = "{";
 pub const RBRACE: &str = "}";
 pub const PLUS: &str = "+";
 pub const MINUS: &str = "-";
+pub const BANG: &str = "!";
 pub const ASSIGN: &str = "=";
 pub const LET: &str = "let";
 pub const FUNCTION: &str = "fn";
