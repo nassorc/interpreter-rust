@@ -4,19 +4,28 @@ pub type TokenType = &'static str;
 pub const ILLEGAL: &str = "ILLEGAL";
 pub const EOF: &str = "EOF";
 pub const IDENTIFIER: &str = "IDENTIFIER";
+pub const LET: &str = "let";
 pub const INT: &str = "INT";
+pub const FUNCTION: &str = "FN";
+pub const RETURN: &str = "RETURN";
+
 pub const COMMA: &str = ",";
 pub const SEMICOLON: &str = ";";
 pub const LPAREN: &str = "(";
 pub const RPAREN: &str = ")";
 pub const LBRACE: &str = "{";
 pub const RBRACE: &str = "}";
+pub const ASSIGN: &str = "=";
 pub const PLUS: &str = "+";
 pub const MINUS: &str = "-";
+pub const ASTERISK: &str = "*";
+pub const SLASH: &str = "/";
 pub const BANG: &str = "!";
-pub const ASSIGN: &str = "=";
-pub const LET: &str = "let";
-pub const FUNCTION: &str = "fn";
+pub const LT: &str = "<";
+pub const GT: &str = ">";
+pub const EQ: &str = "==";
+pub const NOTEQ: &str = "!=";
+
 
 
 #[derive(Debug, Clone)]
@@ -37,6 +46,8 @@ impl Token {
 pub fn get_identifier(ident: &str) -> TokenType {
   let keyword_map: HashMap<&'static str, TokenType> = HashMap::from([
     ("let", LET),
+    ("fn", FUNCTION),
+    ("return", RETURN),
   ]);
 
   if keyword_map.contains_key(ident) {

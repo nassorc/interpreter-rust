@@ -25,24 +25,36 @@ impl Lexer {
 
         self.skip_whitespace();
 
-        match self.ch {
+        tk = match self.ch {
+            '+' => self.new_token(token::PLUS, self.ch.encode_utf8(&mut tmp)),
+            '-' => self.new_token(token::MINUS, self.ch.encode_utf8(&mut tmp)),
+            '*' => self.new_token(token::ASTERISK, self.ch.encode_utf8(&mut tmp)),
+            '/' => self.new_token(token::SLASH, self.ch.encode_utf8(&mut tmp)),
+            ';' => self.new_token(token::SEMICOLON, self.ch.encode_utf8(&mut tmp)),
+            ',' => self.new_token(token::COMMA, self.ch.encode_utf8(&mut tmp)),
+            '(' => self.new_token(token::LPAREN, self.ch.encode_utf8(&mut tmp)),
+            ')' => self.new_token(token::RPAREN, self.ch.encode_utf8(&mut tmp)),
+            '{' => self.new_token(token::LBRACE, self.ch.encode_utf8(&mut tmp)),
+            '}' => self.new_token(token::RBRACE, self.ch.encode_utf8(&mut tmp)),
+            '<' => self.new_token(token::LT, self.ch.encode_utf8(&mut tmp)),
+            '>' => self.new_token(token::GT, self.ch.encode_utf8(&mut tmp)),
+            '\0' => self.new_token(token::EOF, self.ch.encode_utf8(&mut tmp)),
             '=' => {
-                tk = self.new_token(token::ASSIGN, self.ch.encode_utf8(&mut tmp))
-            },
-            '+' => {
-                tk = self.new_token(token::PLUS, self.ch.encode_utf8(&mut tmp))
-            },
-            '-' => {
-                tk = self.new_token(token::MINUS, self.ch.encode_utf8(&mut tmp))
+                if self.peek_char_is('=') {
+                    self.read_char();
+                    self.new_token(token::EQ, "==")
+                } else {
+                    self.new_token(token::ASSIGN, self.ch.encode_utf8(&mut tmp))
+                }
             },
             '!' => {
-                tk = self.new_token(token::BANG, self.ch.encode_utf8(&mut tmp))
-            },
-            ';' => {
-                tk = self.new_token(token::SEMICOLON, self.ch.encode_utf8(&mut tmp))
-            },
-            '\0' => {
-                tk = self.new_token(token::EOF, self.ch.encode_utf8(&mut tmp))
+                if self.peek_char_is('=') {
+                    self.read_char();
+                    self.new_token(token::NOTEQ, "!=")
+                }
+                else {
+                    self.new_token(token::BANG, self.ch.encode_utf8(&mut tmp))
+                }
             },
             _ => {
                 if self.is_letter() {
@@ -54,9 +66,9 @@ impl Lexer {
                     let number = self.read_number();
                     return self.new_token(token::INT, &number);
                 }
-                tk = token::Token::new(token::ILLEGAL, (0 as char).encode_utf8(&mut tmp))
+                token::Token::new(token::ILLEGAL, ('\0' as char).encode_utf8(&mut tmp))
             }
-        }
+        };
         self.read_char();
         return tk;
     }
@@ -91,6 +103,17 @@ impl Lexer {
         token::Token::new(token_type, literal)
     }
 
+    fn peek_char(&self) -> char {
+        if self.read_position <= self.input.len() {
+            return self.input.as_bytes()[self.read_position] as char;
+        }
+        return '\0';
+    }
+
+    fn peek_char_is(&self, ch: char) -> bool {
+        self.peek_char() == ch
+    }
+
     fn is_letter(&self) -> bool {
         ('a' <= self.ch && self.ch <= 'z') || ('A' <= self.ch && self.ch <= 'Z') || (self.ch == '_')
     }
@@ -104,4 +127,62 @@ impl Lexer {
             self.read_char();
         }
     }
+}
+
+#[cfg(test)]
+mod test {
+    use self::token;
+
+    use super::*;
+
+    struct ExpectedToken {
+        token: token::TokenType,
+        literal: String
+    }
+
+    #[test]
+    fn test_lexer_parsing_completeness() {
+        let input = "
+        +-*/
+        ,;
+        !<>= == !=
+        () {}
+        fn let return 
+        myVar 10
+        ";
+
+        let tests: Vec<ExpectedToken> = vec![
+            ExpectedToken{ token: token::PLUS, literal: "+".to_string()},
+            ExpectedToken{ token: token::MINUS, literal: "-".to_string()},
+            ExpectedToken{ token: token::ASTERISK, literal: "*".to_string()},
+            ExpectedToken{ token: token::SLASH, literal: "/".to_string()},
+            ExpectedToken{ token: token::COMMA, literal: ",".to_string()},
+            ExpectedToken{ token: token::SEMICOLON, literal: ";".to_string()},
+            ExpectedToken{ token: token::BANG, literal: "!".to_string()},
+            ExpectedToken{ token: token::LT, literal: "<".to_string()},
+            ExpectedToken{ token: token::GT, literal: ">".to_string()},
+            ExpectedToken{ token: token::ASSIGN, literal: "=".to_string()},
+            ExpectedToken{ token: token::EQ, literal: "==".to_string()},
+            ExpectedToken{ token: token::NOTEQ, literal: "!=".to_string()},
+            ExpectedToken{ token: token::LPAREN, literal: "(".to_string()},
+            ExpectedToken{ token: token::RPAREN, literal: ")".to_string()},
+            ExpectedToken{ token: token::LBRACE, literal: "{".to_string()},
+            ExpectedToken{ token: token::RBRACE, literal: "}".to_string()},
+            ExpectedToken{ token: token::FUNCTION, literal: "fn".to_string()},
+            ExpectedToken{ token: token::LET, literal: "let".to_string()},
+            ExpectedToken{ token: token::RETURN, literal: "return".to_string()},
+            ExpectedToken{ token: token::IDENTIFIER, literal: "myVar".to_string()},
+            ExpectedToken{ token: token::INT, literal: "10".to_string()},
+            ExpectedToken{ token: token::EOF, literal: "\0".to_string()},
+        ];
+
+        let mut lexer = Lexer::new(input);
+
+        for tt in tests {
+            let tk = lexer.next_token();
+            assert_eq!(tt.token, tk.token_type);
+            assert_eq!(tt.literal, tk.literal);
+        }
+    }
+
 }
