@@ -4,10 +4,12 @@ pub type TokenType = &'static str;
 pub const ILLEGAL: &str = "ILLEGAL";
 pub const EOF: &str = "EOF";
 pub const IDENTIFIER: &str = "IDENTIFIER";
-pub const LET: &str = "let";
+pub const LET: &str = "LET";
 pub const INT: &str = "INT";
 pub const FUNCTION: &str = "FN";
 pub const RETURN: &str = "RETURN";
+pub const TRUE: &str = "TRUE";
+pub const FALSE: &str = "FALSE";
 
 pub const COMMA: &str = ",";
 pub const SEMICOLON: &str = ";";
@@ -48,6 +50,8 @@ pub fn get_identifier(ident: &str) -> TokenType {
     ("let", LET),
     ("fn", FUNCTION),
     ("return", RETURN),
+    ("true", TRUE),
+    ("false", FALSE),
   ]);
 
   if keyword_map.contains_key(ident) {

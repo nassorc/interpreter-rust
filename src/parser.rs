@@ -3,19 +3,9 @@ use std::{
     rc::Rc
 };
 use crate::{
-    token,
-    lexer,
     ast::{
-        Node,
-        Statement, 
-        Expression, 
-        Program, 
-        LetStatement, 
-        Identifier, 
-        Integer,
-        InfixExpression,
-        PrefixExpression
-    }
+        Boolean, Expression, Identifier, InfixExpression, Integer, LetStatement, Node, PrefixExpression, Program, Statement
+    }, lexer, token
 };
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -102,13 +92,10 @@ impl Parser {
 
         while precedence < self.peek_precedence() {
             self.next_token(); // advance token to the infix operator
-
             let right = self.call_infix_parser(&left);
-
             if (right.is_nil()) {
                 return left;
             }
-
             left = right;
         }
 
@@ -120,6 +107,10 @@ impl Parser {
             token::INT => self.parse_integer().map_or(
                 Node::Nil, 
                 |v| Node::Int(v)
+            ),
+            token::TRUE | token::FALSE => self.parse_boolean().map_or(
+                Node::Nil,
+                |v| Node::Boolean(v)
             ),
             token::IDENTIFIER => self.parse_identifier().map_or(
                 Node::Nil, 
@@ -173,6 +164,10 @@ impl Parser {
             .parse::<i32>()
             .expect("Cannot parse self.curk_token.literal as i32");
         return Ok(Integer(value));
+    }
+
+    fn parse_boolean(&self) -> Result<Boolean, String> {
+        Ok(Boolean(self.cur_token_is(token::TRUE)))
     }
 
     fn parse_identifier(&self) -> Result<Identifier, String> {

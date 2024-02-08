@@ -7,6 +7,7 @@ pub enum Node {
     ExpressionStatement(Expression),
     Ident(Identifier),
     Int(Integer),
+    Boolean(Boolean),
     Prefix(PrefixExpression),
     Infix(InfixExpression),
     Nil,
@@ -61,6 +62,9 @@ pub struct Identifier(pub String);
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Integer(pub i32);
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Boolean(pub bool);
 
 #[derive(Debug, Clone)]
 pub struct PrefixExpression {
