@@ -1,27 +1,29 @@
-use std::collections::HashMap;
-use std::num::ParseIntError;
-
-use crate::ast::InfixExpression;
-use crate::ast::PrefixExpression;
-use crate::token;
-use crate::lexer;
-use crate::ast::{
-    Statement, 
-    Expression, 
-    Program, 
-    LetStatement, 
-    Identifier, 
-    Integer
+use std::{
+    collections::HashMap,
+    rc::Rc
 };
-use crate::token::TokenType;
-
+use crate::{
+    token,
+    lexer,
+    ast::{
+        Node,
+        Statement, 
+        Expression, 
+        Program, 
+        LetStatement, 
+        Identifier, 
+        Integer,
+        InfixExpression,
+        PrefixExpression
+    }
+};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum PrecedenceType {
     LOWEST = 0,
     LESSGREATER,
     ADD,
-    MULTIPLY,
+    PRODUCT,
     CALL
 }
 
@@ -40,55 +42,70 @@ impl Parser {
             cur_token: token::Token{ token_type: token::EOF, literal: "\0".to_string() },
             peek_token: token::Token{ token_type: token::EOF, literal: "\0".to_string() },
         };
-        // advance tokens so that curToken is the first token from the lexer
+
+        // advance tokens so that curToken contains the first token from the lexer
         parser.next_token();
         parser.next_token();
 
         return parser;
     }
 
-    fn dummy(&self) {
-        println!("THIS IS A DUMMY FN");
-    }
-
+    // This function gets the next token from the lexer and updates cur_token
+    // and peek_token.
     fn next_token(&mut self) {
         self.cur_token = self.peek_token.clone();
         self.peek_token = self.l.next_token();
     }
 
-    pub fn parse_program(&mut self) -> Program {
+    // This function consumes lexer and produces a Node::Program representing
+    // the AST of the source file.
+    pub fn parse_program(&mut self) -> Node {
         let mut program = Program { statements: vec![] };
 
         while !self.cur_token_is(token::EOF) {
             let stmt = self.parse_statement();
-            program.statements.push(stmt);
+            if !stmt.is_nil() {
+                program.statements.push(stmt);
+            }
         } 
 
-        return program;
+        return Node::Program(program);
     }
 
-    fn parse_statement(&mut self) -> Statement {
+    // This function transforms a token to represent a node of the AST,
+    // and returns the Node
+    // The parser parses three types of statement variants
+    // 1. LetStatements         - represents a let statement
+    // 2. ReturnStatements      - represnts a return statement
+    // 3. Expression Statements - represents an any valid expression
+    fn parse_statement(&mut self) -> Node {
         if (self.cur_token_is(token::LET)) {
-            return self.parse_let_statement();
-        } else {
+            return self.parse_let_statement().map_or(
+                Node::Nil,
+                |v| Node::LetStatement(v)
+            );
+        } 
+        else {
             return self.parse_expression_statement();
         }
+        Node::Nil
     }
 
-    fn parse_expression_statement(&mut self) -> Statement {
+    fn parse_expression_statement(&mut self) -> Node {
         let exprs = self.parse_expression(PrecedenceType::LOWEST);
         self.next_token();
-        return Statement::ExpressionStatement(exprs);
+        return exprs;
     }
 
-    fn parse_expression(&mut self, precedence: PrecedenceType) -> Expression {
-        let mut left = self.call_prefix_parser();
+    fn parse_expression(&mut self, precedence: PrecedenceType) -> Node {
+        let mut left = self.parse_prefix_operation();
 
         while precedence < self.peek_precedence() {
-            self.next_token(); // current now is the infix opreator
+            self.next_token(); // advance token to the infix operator
+
             let right = self.call_infix_parser(&left);
 
-            if (right == Expression::Nil) {
+            if (right.is_nil()) {
                 return left;
             }
 
@@ -98,12 +115,40 @@ impl Parser {
         return left;
     }
 
-    fn parse_let_statement(&mut self) -> Statement {
+    fn parse_prefix_operation(&mut self) -> Node {
+        match self.cur_token.token_type {
+            token::INT => self.parse_integer().map_or(
+                Node::Nil, 
+                |v| Node::Int(v)
+            ),
+            token::IDENTIFIER => self.parse_identifier().map_or(
+                Node::Nil, 
+                |v| Node::Ident(v)
+            ),
+            token::MINUS | token::BANG => self.parse_prefix_expression().map_or(
+                Node::Nil, 
+                |v| Node::Prefix(v)
+            ),
+            _ => Node::Nil
+        }
+    }
+
+    fn call_infix_parser(&mut self, left: &Node) -> Node {
+        match self.cur_token.token_type {
+            token::PLUS | token::ASTERISK => self.parse_infix_expression(&left).map_or(
+                Node::Nil, 
+                |v| Node::Infix(v)
+            ),
+            _ => Node::Nil
+        }
+    }
+
+    fn parse_let_statement(&mut self) -> Option<LetStatement> {
         self.next_token();  // advance token to identifier
         let name = Identifier(self.cur_token.literal.clone());
 
         if !self.expect_peek(token::ASSIGN) { 
-            return Statement::ExpressionStatement(Expression::Nil);
+            return None;
         }
 
         self.next_token();
@@ -111,46 +156,15 @@ impl Parser {
         let value = self.parse_expression(PrecedenceType::LOWEST);
 
         if !self.expect_peek(token::SEMICOLON) {
-            return Statement::Nil;
+            return None;
         }
 
-        Statement::LetStatement(LetStatement {
+        Some(LetStatement {
             name,
-            value
+            value: Rc::new(value)
         })
     }
 
-    fn call_prefix_parser(&mut self) -> Expression {
-        match self.cur_token.token_type {
-
-            token::INT => 
-                self.parse_integer()
-                .map_or(Expression::Nil, |v| Expression::Int(v)),
-            
-            token::IDENTIFIER => 
-                self.parse_identifier()
-                .map_or(Expression::Nil, |v| Expression::Ident(v)),
-            
-            token::BANG | token::MINUS => 
-                self.parse_prefix_expression()
-                .map_or(Expression::Nil, |v| Expression::Prefix(v)),
-
-            _ => Expression::Nil
-        }
-    }
-
-    fn call_infix_parser(&mut self, left: &Expression) -> Expression {
-        match self.cur_token.token_type {
-            token::PLUS => { 
-                dbg!("before entring infix plug function");
-                dbg!(&self.cur_token);
-                let r = self.parse_infix_expression(&left)
-                    .map_or(Expression::Nil, |v| Expression::Infix(v));
-                return r;
-            },
-            _ => Expression::Nil,
-        }
-    }
 
     fn parse_integer(&self) -> Result<Integer, String> {
         let value = self
@@ -172,32 +186,31 @@ impl Parser {
 
         Ok(PrefixExpression {
             op: cur_tk.literal.clone(),
-            right: Box::new(right)
+            right: Rc::new(right)
         })
     }
 
-    fn parse_infix_expression(&mut self, left: &Expression) -> Result<InfixExpression, String> {
+    fn parse_infix_expression(&mut self, left: &Node) -> Result<InfixExpression, String> {
         let cur_tk = self.cur_token.clone();
-
-        let precedence = self.cur_precedence();
+        let precedence = self.cur_precedence(); // save current precedence before advancing lexer
 
         self.next_token();
-        dbg!("before right expression: cur token");
-        dbg!(&self.cur_token);
+
         let right = self.parse_expression(precedence);
 
         Ok(InfixExpression {
-            left: Box::new(left.clone()),
+            left: Rc::new(left.clone()),
             op: cur_tk.literal.clone(),
-            right: Box::new(right),
+            right: Rc::new(right),
         })
     }
 
     fn expect_peek(&mut self, tk: token::TokenType) -> bool {
-        if (self.peek_token_is(tk.clone())) {
+        if (self.peek_token_is(tk)) {
             self.next_token();
             return true;
         }
+        // if self.cur_token is not expected tk, push error
         self.errors.push(format!("Expected peek_token to be {}, got {}", tk, self.peek_token.token_type));
         return false;
     }
@@ -220,7 +233,8 @@ impl Parser {
 
     fn get_token_precedence(&self, tt: token::TokenType) -> PrecedenceType {
         match tt {
-            token::PLUS => PrecedenceType::ADD,
+            token::PLUS | token::MINUS => PrecedenceType::ADD,
+            token::ASTERISK | token::SLASH => PrecedenceType::PRODUCT,
             _ => PrecedenceType::LOWEST
         }
     }
