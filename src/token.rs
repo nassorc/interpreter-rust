@@ -8,6 +8,8 @@ pub const LET: &str = "LET";
 pub const INT: &str = "INT";
 pub const FUNCTION: &str = "FN";
 pub const RETURN: &str = "RETURN";
+pub const IF: &str = "IF";
+pub const ELSE: &str = "ELSE";
 pub const TRUE: &str = "TRUE";
 pub const FALSE: &str = "FALSE";
 
@@ -50,6 +52,8 @@ pub fn get_identifier(ident: &str) -> TokenType {
     ("let", LET),
     ("fn", FUNCTION),
     ("return", RETURN),
+    ("if", IF),
+    ("else", ELSE),
     ("true", TRUE),
     ("false", FALSE),
   ]);

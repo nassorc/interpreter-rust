@@ -2,9 +2,13 @@ use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub enum Node {
     Program(Program),
+    BlockStatement(BlockStatement),
     LetStatement(LetStatement),
     ReturnStatement(ReturnStatement),
+    IfExpression(IfExpression),
     ExpressionStatement(Expression),
+    Function(FunctionLiteral),
+    CallExpression(CallExpression),
     Ident(Identifier),
     Int(Integer),
     Boolean(Boolean),
@@ -47,6 +51,23 @@ pub struct Program {
 }
 
 #[derive(Debug, Clone)]
+pub struct BlockStatement {
+    pub statements: Vec<Node>
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionLiteral {
+    pub parameters: Vec<Node>,
+    pub body: Rc<Node>
+}
+
+#[derive(Debug, Clone)]
+pub struct CallExpression {
+    pub function: Rc<Node>,
+    pub arguments: Vec<Node>
+}
+
+#[derive(Debug, Clone)]
 pub struct LetStatement {
     pub name: Identifier,
     pub value: Rc<Node>
@@ -54,7 +75,7 @@ pub struct LetStatement {
 
 #[derive(Debug, Clone)]
 pub struct ReturnStatement {
-    pub value: Expression
+    pub value: Rc<Node>
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -77,4 +98,11 @@ pub struct InfixExpression {
     pub op: String,
     pub right: Rc<Node>,
     pub left: Rc<Node>
+}
+
+#[derive(Debug, Clone)]
+pub struct IfExpression {
+    pub condition: Rc<Node>,
+    pub consequence: Vec<Node>, // block statement
+    pub alternative: Vec<Node>,
 }

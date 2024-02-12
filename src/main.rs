@@ -4,72 +4,81 @@ mod token;
 mod lexer;
 mod parser;
 mod ast;
-// mod eval;
+mod object;
+mod eval;
 
-use std::{borrow::Borrow, collections::HashMap};
+use std::borrow::Borrow;
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::ops::Deref;
 use std::rc::Rc;
+use std::cell::RefCell;
 
-use token::Token;
 use lexer::Lexer;
-
-use crate::ast::{Identifier, Integer, LetStatement, Node};
 use parser::Parser;
+use object::Environment;
+use eval::eval;
 
-fn print_node(node: &Node) {
-    // dbg!(node);
+use crate::object::{IntegerObject, Object};
+
+#[derive(Debug)]
+struct TEnv {
+    store: HashMap<String, String>,
+    outer: Option<Rc<RefCell<TEnv>>>
 }
 
 fn main() {
-    let mut lexer = Lexer::new("1 + 2 * 3");
+    let input = "let a = if (true) { 10 + 2; 2; } else { 5 }";
+    let input = "
+    let a = fn(x) { let b = 10; return b + x; 1000; };
+    a(1) + 4";
+    let input = "if (2 + 4) { 10 + 2; 2; }; 10;";
+    let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
 
     let prog = parser.parse_program();
 
     dbg!(&prog);
 
-
-    // let evaluated = eval::eval_statements(prog.statements[0].clone()).unwrap();
-
-    // println!("working");
-
-    let mut statements: Vec<Node> = vec![];
-    let l1 = LetStatement {
-        name: Identifier(String::from("myVar")),
-        value: Rc::new(Node::Int(Integer(1009)))
-    };
-    let expr1 = Integer(1010);
-    statements.push(Node::LetStatement(l1));
-    statements.push(Node::Int(expr1));
-
-    // dbg!(&statements);
-
-
-    for n in statements {
-        match &n {
-            Node::LetStatement(lt) => {
-                print_node(&lt.value);
-            },
-            Node::Int(_) => {
-                print_node(&n);
-            }
-            _ => {}
-        }
+    let mut env = Environment::new();
+    {
+        env.borrow_mut().store.insert(
+            "myVar".to_string(), 
+            Rc::new(RefCell::new(
+                Object::Integer(IntegerObject{ value: 101 })
+            ))
+        );
     }
+    // dbg!(&env);
 
+    dbg!(eval(&prog, Rc::clone(&env)));
 
+    // let mut global_env = Rc::new(RefCell::new(Environment { 
+    //     store: HashMap::new(),
+    //     outer: None
+    // }));
 
+    // let t = Rc::new(RefCell::new(TEnv {
+    //     store: HashMap::new(),
+    //     outer: None
+    // }));
 
-    // println!("len: {}", prog.statements.len());
+    // let t_clone = Rc::clone(&t);
 
-    // if parser.errors.len() > 0 {
-    //     for err in parser.errors {
-    //         println!("{}", err);
-    //     }
-    // }
+    // t.borrow_mut().store.insert(String::from("newnew"), String::from("blahblah"));
 
-    // dbg!(&prog.statements[0]);
-    // eval::eval()
-    // for node in prog.statements {
-    // }
+    // dbg!(&t);
 
+    // let mut t2 = TEnv{
+    //     store: HashMap::new(),
+    //     outer: Some(Rc::clone(&t))
+    // };
+
+    // t2.store.insert(String::from("local to function"), String::from("locallocal"));
+
+    // dbg!(&t2);
+    // dbg!((*(t2.outer.unwrap().borrow_mut())).store.insert("lala".to_string(), "rara".to_string()));
+    // dbg!(&t);
+    
 }
+

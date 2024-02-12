@@ -1,11 +1,8 @@
-use std::{
-    collections::HashMap,
-    rc::Rc
-};
+use std::{collections::HashMap, rc::Rc};
 use crate::{
-    ast::{
-        Boolean, Expression, Identifier, InfixExpression, Integer, LetStatement, Node, PrefixExpression, Program, Statement
-    }, lexer, token
+    lexer,  
+    token,
+    ast::*, 
 };
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -57,6 +54,7 @@ impl Parser {
             if !stmt.is_nil() {
                 program.statements.push(stmt);
             }
+            self.next_token();
         } 
 
         return Node::Program(program);
@@ -69,21 +67,21 @@ impl Parser {
     // 2. ReturnStatements      - represnts a return statement
     // 3. Expression Statements - represents an any valid expression
     fn parse_statement(&mut self) -> Node {
-        if (self.cur_token_is(token::LET)) {
-            return self.parse_let_statement().map_or(
+        match self.cur_token.token_type {
+            token::LET => self.parse_let_statement().map_or(
                 Node::Nil,
                 |v| Node::LetStatement(v)
-            );
-        } 
-        else {
-            return self.parse_expression_statement();
+            ),
+            token::RETURN => self.parse_return_statement().map_or(
+                Node::Nil, 
+                |v| Node::ReturnStatement(v)
+            ),
+            _ => self.parse_expression_statement()
         }
-        Node::Nil
     }
 
     fn parse_expression_statement(&mut self) -> Node {
         let exprs = self.parse_expression(PrecedenceType::LOWEST);
-        self.next_token();
         return exprs;
     }
 
@@ -116,12 +114,96 @@ impl Parser {
                 Node::Nil, 
                 |v| Node::Ident(v)
             ),
+            token::FUNCTION => self.parse_function_literal().map_or(
+                Node::Nil, 
+                |v| Node::Function(v)
+            ),
             token::MINUS | token::BANG => self.parse_prefix_expression().map_or(
                 Node::Nil, 
                 |v| Node::Prefix(v)
             ),
+            token::IF => self.parse_if_expression().map_or(
+                Node::Nil, 
+                |v| Node::IfExpression(v)
+            ),
             _ => Node::Nil
         }
+    }
+
+    fn parse_if_expression(&mut self) -> Result<IfExpression, String> {
+        // if (<condition>) { <consequence> } else { <alternative> }
+        //    C P
+
+        if !self.expect_peek(token::LPAREN) {
+            return Err(String::from("Missing ("));
+        }
+
+        self.next_token();
+        let condition = self.parse_expression(PrecedenceType::LOWEST);
+
+        // dbg!(&condition);
+        // dbg!(&self.peek_token);
+
+        if !self.expect_peek(token::RPAREN) {
+            return Err(String::from("Missing ("));
+        }
+
+        if !self.expect_peek(token::LBRACE) {
+            return Err(String::from("Missing ("));
+        }
+
+        let mut consequence: Vec<Node> = vec![];
+
+        // body
+        while !self.cur_token_is(token::RBRACE) && !self.cur_token_is(token::EOF) {
+            let stmt = self.parse_statement();
+            if !stmt.is_nil() {
+                consequence.push(stmt);
+            }
+            self.next_token();
+        }
+
+        // else { }
+        //    c p
+
+        let mut alternative: Vec<Node> = vec![];
+
+
+        if self.peek_token_is(token::ELSE) {
+            self.next_token();
+            dbg!(&self.cur_token);
+            dbg!(&self.peek_token);
+            if !self.expect_peek(token::LBRACE) {
+                return Err(String::from("Missing ("));
+            }
+
+            // body
+            while !self.cur_token_is(token::RBRACE) && !self.cur_token_is(token::EOF) {
+                let stmt = self.parse_statement();
+                if !stmt.is_nil() {
+                    alternative.push(stmt);
+                }
+                self.next_token();
+            }
+        }
+
+
+        // dbg!(&consequence);
+
+
+        // dbg!("NEXT AFTER CONSEQUENCE");
+        // dbg!(&self.cur_token);
+        // dbg!(&self.peek_token);
+        
+
+        dbg!(Ok(IfExpression {
+            condition: Rc::new(condition),
+            consequence,
+            alternative
+        }))
+
+
+        // Err(String::from("testing"))
     }
 
     fn call_infix_parser(&mut self, left: &Node) -> Node {
@@ -129,6 +211,10 @@ impl Parser {
             token::PLUS | token::ASTERISK => self.parse_infix_expression(&left).map_or(
                 Node::Nil, 
                 |v| Node::Infix(v)
+            ),
+            token::LPAREN => self.parse_call_expression(&left).map_or(
+                Node::Nil, 
+                |v| Node::CallExpression(v)
             ),
             _ => Node::Nil
         }
@@ -156,6 +242,89 @@ impl Parser {
         })
     }
 
+    fn parse_return_statement(&mut self) -> Option<ReturnStatement> {
+        self.next_token();
+        let return_value = self.parse_expression(PrecedenceType::LOWEST);
+        Some(ReturnStatement{
+            value: Rc::new(return_value)
+        })
+    }
+
+    fn parse_call_expression(&mut self, left: &Node) -> Result<CallExpression, String> {
+        self.next_token(); // cur_token is '(' 
+
+        let mut arguments: Vec<Node> = vec![];
+        // if function has arguments
+        if !self.cur_token_is(token::RPAREN) {
+            // parse first agument
+            let arg = self.parse_expression(PrecedenceType::LOWEST);
+            arguments.push(arg);
+
+            // while more than one argument
+            while !self.peek_token_is(token::RPAREN) && !self.peek_token_is(token::EOF) {
+                self.next_token();
+                self.next_token();
+
+                let arg = self.parse_expression(PrecedenceType::LOWEST);
+                arguments.push(arg);
+            }
+        } 
+
+        if !self.expect_peek(token::RPAREN) {
+            return Err(String::from("Missing )"));
+        }
+
+        Ok(CallExpression { arguments, function: Rc::new(left.clone())})
+    }
+
+    fn parse_function_literal(&mut self) -> Option<FunctionLiteral> {
+        if !self.expect_peek(token::LPAREN) {
+            return None;
+        }
+
+        let mut parameters: Vec<Node> = vec![];
+
+        if !self.peek_token_is(token::RPAREN) {
+            self.next_token();
+            let ident = self.parse_identifier().unwrap();
+            parameters.push(Node::Ident(ident));
+
+            while self.peek_token_is(token::COMMA) {
+                self.next_token();
+                self.next_token();
+                // identifier here
+                let ident = self.parse_identifier().unwrap();
+                parameters.push(Node::Ident(ident));
+            }
+        }
+
+        if !self.expect_peek(token::RPAREN) {
+            return None;
+        }
+
+        if !self.expect_peek(token::LBRACE) {
+
+            return None;
+        }
+
+        let mut stmts: Vec<Node> = vec![];
+
+        // body
+        while !self.cur_token_is(token::RBRACE) && !self.cur_token_is(token::EOF) {
+            let stmt = self.parse_statement();
+            if !stmt.is_nil() {
+                stmts.push(stmt);
+            }
+            self.next_token();
+        }
+
+        Some(FunctionLiteral{
+            parameters: parameters,
+            body: Rc::new(Node::BlockStatement(BlockStatement {
+                statements: stmts
+            }))
+        })
+    }
 
     fn parse_integer(&self) -> Result<Integer, String> {
         let value = self
@@ -230,11 +399,81 @@ impl Parser {
         match tt {
             token::PLUS | token::MINUS => PrecedenceType::ADD,
             token::ASTERISK | token::SLASH => PrecedenceType::PRODUCT,
+            token::LPAREN => PrecedenceType::CALL,
             _ => PrecedenceType::LOWEST
         }
     }
 
     fn new_error(&mut self, message: &str) {
         self.errors.push(message.to_string());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::borrow::Borrow;
+
+    use super::*;
+    use crate::lexer::Lexer;
+
+    #[test]
+    fn it_should_parse_integer_expressions() {
+        let input = "10; 5;";
+        let tests = vec![10, 5];
+        let mut parser = utils::setup_parser(input);
+        let prog = match parser.parse_program() {
+            Node::Program(prog) => Some(prog),
+            _ => None
+        }.unwrap();
+
+        assert!(parser.errors.len() == 0, "parsing error");
+
+        for (idx, stmt) in prog.statements.iter().enumerate() {
+            match stmt {
+                Node::Int(actual) => { 
+                    // dbg!(format!("{} - {}", tests[idx], actual.0));
+                    assert_eq!(tests[idx], actual.0)
+                },
+                _ => {
+                    assert!(false, "expr not Node::Int");
+                }
+            }
+        }
+    }
+
+    // #[test]
+    // fn it_should_parse_function_literals() {
+    //     let input = "
+    //     let f = fn() { 10 };
+    //     ";
+    //     let mut parser = utils::setup_parser(input);
+    //     let prog = match parser.parse_program() {
+    //         Node::Program(prog) => Some(prog),
+    //         _ => None
+    //     }.unwrap();
+
+    //     assert!(parser.errors.len() == 0, "parsing error");
+
+    //     match &prog.statements[0] {
+    //         Node::LetStatement(lt) => {
+    //             match lt.value.borrow() {
+    //                 Node::Function(f) => {
+    //                     let f = f;
+    //                     assert_eq!(f.parameters.len(), 0);
+    //                     assert_eq!(f.body.statements.len(), 1);
+    //                 },
+    //                 _ => assert!(false, "expr not Node::Function")
+    //             }
+    //         }
+    //         _ => {}
+    //     }
+    // }
+
+    mod utils {
+        use super::*;
+        pub(super) fn setup_parser(input: &str) -> Parser {
+            let mut lexer = Lexer::new(input);
+            Parser::new(lexer)
+        }
     }
 }
