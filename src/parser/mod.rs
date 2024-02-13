@@ -1,8 +1,11 @@
+pub mod ast;
+
 use std::{collections::HashMap, rc::Rc};
+
+use ast::*;
 use crate::{
     lexer,  
-    token,
-    ast::*, 
+    lexer::token,
 };
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]

@@ -1,8 +1,15 @@
-use std::{borrow::Borrow, cell::RefCell, rc::Rc};
+pub mod environment;
+pub mod object;
 
+use std::{borrow::Borrow, cell::RefCell, rc::Rc};
 use crate::{
-    ast::*, object::*
+    parser::ast::*, object::*, environment::*
 };
+use environment::*;
+use object::*;
+
+
+// TODO: create function to handle block statments: IfStatements, FunctionLiterals, 
 
 pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
     let env = Rc::clone(&env);
@@ -12,19 +19,18 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Option<Object> {
         Node::CallExpression(v) => eval_call(v, env),
         Node::LetStatement(v) => eval_let_statement(v, env),
         Node::ReturnStatement(v) => eval_return_statement(v, env),
+        Node::IfExpression(v) => eval_if_expression(v, env),
         Node::Prefix(v) => eval_prefix(v, env),
         Node::Infix(v) => eval_infix(v, env),
         Node::Function(v) => eval_function_literal(v, env),
         Node::Int(v) => Some(Object::Integer(IntegerObject{value: v.0})),
         Node::Boolean(v) => Some(Object::Boolean(BooleanObject{value: v.0})),
         Node::Ident(v) => eval_identifier(v, env),
-        // Node::Ident(v) => Some(Object::ObjectRef(Rc::clone(&eval_identifier(v, env).unwrap()))),
         _ => None
     }
 }
 
 fn eval_statements(statements: &[Node], env: Rc<RefCell<Environment>>) -> Option<Object> {
-    // IntegerObject{ value: 100 }
     let mut result = None;
     for stmt in statements {
         result = eval(stmt, Rc::clone(&env));
@@ -34,6 +40,38 @@ fn eval_statements(statements: &[Node], env: Rc<RefCell<Environment>>) -> Option
         }
     }
     result
+}
+
+fn eval_block_statements(statements: &[Node], env: Rc<RefCell<Environment>>) -> Option<Object> {
+    let mut result = None;
+    for stmt in statements {
+        result = eval(stmt, Rc::clone(&env));
+
+        if let Some(Object::Return(v)) = result {
+            return Some(Object::Return(v));
+        }
+    }
+    result
+}
+
+fn eval_if_expression(stmt: &IfExpression, env: Rc<RefCell<Environment>>) -> Option<Object> {
+    let condition = eval(stmt.condition.as_ref(), Rc::clone(&env))?;
+
+    if is_truthy(&condition) {
+        return eval_block_statements(&stmt.consequence, Rc::clone(&env));
+    } else {
+        return eval_block_statements(&stmt.alternative, Rc::clone(&env));
+    }
+}
+
+fn is_truthy(obj: &Object) -> bool {
+    match obj {
+        Object::Boolean(v) => {
+            if v.value { true } else { false }
+        }
+        Object::Null => false,
+        _ => true
+    }
 }
 
 fn eval_call(call: &CallExpression, env: Rc<RefCell<Environment>>) -> Option<Object> {
@@ -72,17 +110,6 @@ fn eval_prefix(prefix: &PrefixExpression, env: Rc<RefCell<Environment>>) -> Opti
                     right.value *= -1;
                     return Some(Object::Integer(right));
                 },
-                // Reference to an Object
-                // Object::ObjectRef(right) => {
-                //     match right.as_ref().borrow().clone() {
-                //         Object::Integer(mut right) => {
-                //             right.value *= -1;
-                //             return Some(Object::Integer(right));
-                //         },
-                //         _ => { return None; }
-                //     }
-                //     return None;
-                // },
                 _ => { return None; }
             }
             if let Object::Integer(mut right) = right {
@@ -100,7 +127,6 @@ fn eval_prefix(prefix: &PrefixExpression, env: Rc<RefCell<Environment>>) -> Opti
                         true => Some(Object::Boolean(FALSE)),
                         false => Some(Object::Boolean(TRUE)),
                     };
-                    // return Some(Object::Boolean(BooleanObject{ value: !b.value }));
                 },
                 _ => return Some(Object::Boolean(TRUE))
             }

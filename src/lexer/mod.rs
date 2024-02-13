@@ -1,4 +1,5 @@
-use crate::token;
+pub mod token;
+// use crate::token;
 #[derive(Debug)]
 pub struct Lexer {
     pub input: String,
