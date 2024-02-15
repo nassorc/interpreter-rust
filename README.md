@@ -1,0 +1,29 @@
+# Programming language written in Rust
+---
+## Language Specficiation
+## examples
+## Tasks
+- [] Add strings
+- [] Add built in functions
+  - [] input / output 
+  - [] len 
+- [] Arrays
+- [x] Add a to_string AST method 
+
+- [] test parser
+  - [️x] test basic types
+    - [x️] * integers
+    - [x️] * booleans
+    - [x️] * identifiers
+  - [x️] test prefix expression
+  - [x️] test infix expression
+  - [️x] test precedence correctness
+  - [x️] parse let statements
+  - [x️] parse return statements
+  - [x] parse function literals
+    - [x] test function arguments
+    - [x] test function body
+  - [x] parse call expression
+  - [x] test to_string ast method
+
+- [] test evaluation
