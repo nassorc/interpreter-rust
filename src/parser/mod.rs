@@ -414,69 +414,425 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Borrow;
+    use super::{lexer::Lexer, *};
+    #[test]
+    fn test_parsing_integers() {
+        let input = "
+            5;
+            10;
+        ";
+        let input_size = utils::count_statements(input);
+        let (parser, prog) = utils::setup(&input);
 
-    use super::*;
-    use crate::lexer::Lexer;
+        let Node::Program(prog) = prog else {
+            assert!(false, "prog is not Node::Program");
+            return;
+        };
+
+        utils::check_parser_errors(&parser);
+        utils::assert_program_len(&prog, input_size);
+
+        let tests = vec![5, 10];
+
+        for (idx, test) in tests.iter().enumerate() {
+            let actual = prog.statements.get(idx).unwrap();
+            utils::assert_integer_type(actual, *test);
+        }
+    }
 
     #[test]
-    fn it_should_parse_integer_expressions() {
-        let input = "10; 5;";
-        let tests = vec![10, 5];
-        let mut parser = utils::setup_parser(input);
-        let prog = match parser.parse_program() {
-            Node::Program(prog) => Some(prog),
-            _ => None
-        }.unwrap();
+    fn test_parsing_booleans() {
+        let input = "
+            true;
+            false;
+        ";
+        let input_size = utils::count_statements(input);
+        let (parser, prog) = utils::setup(&input);
 
-        assert!(parser.errors.len() == 0, "parsing error");
+        let Node::Program(prog) = prog else {
+            assert!(false, "prog is not Node::Program");
+            return;
+        };
 
-        for (idx, stmt) in prog.statements.iter().enumerate() {
-            match stmt {
-                Node::Int(actual) => { 
-                    // dbg!(format!("{} - {}", tests[idx], actual.0));
-                    assert_eq!(tests[idx], actual.0)
-                },
+        utils::check_parser_errors(&parser);
+        utils::assert_program_len(&prog, input_size);
+
+        let tests = vec![true, false];
+
+        for (idx, test) in tests.iter().enumerate() {
+            let actual = prog.statements.get(idx).unwrap();
+            match actual {
+                Node::Boolean(actual) => {
+                    assert_eq!(&actual.0, test);
+                }
                 _ => {
-                    assert!(false, "expr not Node::Int");
+                    assert!(false, "expected Node::Boolean, got=.");
                 }
             }
         }
     }
 
-    // #[test]
-    // fn it_should_parse_function_literals() {
-    //     let input = "
-    //     let f = fn() { 10 };
-    //     ";
-    //     let mut parser = utils::setup_parser(input);
-    //     let prog = match parser.parse_program() {
-    //         Node::Program(prog) => Some(prog),
-    //         _ => None
-    //     }.unwrap();
+    #[test]
+    fn test_parsing_identifiers() {
+        let input = "
+            a;
+            myVar;
+        ";
+        let input_size = utils::count_statements(input);
+        let (parser, prog) = utils::setup(&input);
 
-    //     assert!(parser.errors.len() == 0, "parsing error");
+        let Node::Program(prog) = prog else {
+            assert!(false, "prog is not Node::Program");
+            return;
+        };
 
-    //     match &prog.statements[0] {
-    //         Node::LetStatement(lt) => {
-    //             match lt.value.borrow() {
-    //                 Node::Function(f) => {
-    //                     let f = f;
-    //                     assert_eq!(f.parameters.len(), 0);
-    //                     assert_eq!(f.body.statements.len(), 1);
-    //                 },
-    //                 _ => assert!(false, "expr not Node::Function")
-    //             }
-    //         }
-    //         _ => {}
-    //     }
-    // }
+        utils::check_parser_errors(&parser);
+        utils::assert_program_len(&prog, input_size);
+
+        let tests = vec!["a", "myVar"];
+
+        for (idx, test) in tests.iter().enumerate() {
+            let actual = prog.statements.get(idx).unwrap();
+            match actual {
+                Node::Ident(actual) => {
+                    assert_eq!(&actual.0, test);
+                }
+                _ => {
+                    assert!(false, "expected Node::Ident, got=.");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parsing_prefix_expression() {
+        let input = "
+            -5;
+            !10;
+        ";
+        let input_size = utils::count_statements(input);
+        let (parser, prog) = utils::setup(&input);
+
+        let Node::Program(prog) = prog else {
+            assert!(false, "prog is not Node::Program");
+            return;
+        };
+
+        utils::check_parser_errors(&parser);
+        utils::assert_program_len(&prog, input_size);
+
+        let tests = vec![("-", 5), ("!", 10)];
+
+        for (idx, test) in tests.iter().enumerate() {
+            let actual = prog.statements.get(idx).unwrap();
+            match actual {
+                Node::Prefix(actual) => {
+                    assert_eq!(&actual.op, test.0);
+                    utils::assert_integer_type(&actual.right.as_ref(), test.1);
+                }
+                _ => {
+                    assert!(false, "expected Node::Ident, got=.");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parsing_infix_expressions() {
+        let input = "
+            10 + 5;
+            10 - 5;
+            10 * 5;
+            10 / 5;
+            10 < 5;
+            10 > 5;
+            10 == 5;
+            10 == 10;
+            10 != 5;
+            10 != 10;
+        ";
+        let input_size = utils::count_statements(input);
+        let (parser, prog) = utils::setup(&input);
+
+        let Node::Program(prog) = prog else {
+            assert!(false, "prog is not Node::Program");
+            return;
+        };
+
+        utils::check_parser_errors(&parser);
+        utils::assert_program_len(&prog, input_size);
+
+        let tests = vec![
+            (10, "+", 5),
+            (10, "-", 5),
+            (10, "*", 5),
+            (10, "/", 5),
+            (10, "<", 5),
+            (10, ">", 5),
+            (10, "==", 5),
+            (10, "==", 10),
+            (10, "!=", 5),
+            (10, "!=", 10),
+        ];
+
+        for (idx, test) in tests.iter().enumerate() {
+            let actual = prog.statements.get(idx).unwrap();
+            match actual {
+                Node::Infix(actual) => {
+                    assert_eq!(&actual.op, test.1);
+
+                    utils::assert_integer_type(&actual.left.as_ref(), test.0);
+                    utils::assert_integer_type(&actual.right.as_ref(), test.2);
+                }
+                _ => {
+                    assert!(false, "expected Node::Ident, got=.");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parsing_let_statements() {
+        let input = "
+        let a = 10;
+        ";
+        let input_size = utils::count_statements(input);
+        let (parser, prog) = utils::setup(&input);
+
+        let Node::Program(prog) = prog else {
+            assert!(false, "prog is not Node::Program");
+            return;
+        };
+
+        utils::check_parser_errors(&parser);
+        utils::assert_program_len(&prog, input_size);
+
+        let tests = vec![("a", 10)];
+
+        for (idx, test) in tests.iter().enumerate() {
+            let actual = prog.statements.get(idx).unwrap();
+            match actual {
+                Node::LetStatement(actual) => {
+                    assert_eq!(&actual.name.0, test.0);
+                    utils::assert_integer_type(actual.value.as_ref(), test.1);
+                }
+                _ => {
+                    assert!(false, "expected Node::Ident, got=.");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parsing_return_statements() {
+        let input = "
+        return 10;
+        ";
+        let input_size = utils::count_statements(input);
+        let (parser, prog) = utils::setup(&input);
+
+        let Node::Program(prog) = prog else {
+            assert!(false, "prog is not Node::Program");
+            return;
+        };
+
+        utils::check_parser_errors(&parser);
+        utils::assert_program_len(&prog, input_size);
+
+        let tests = vec![10];
+
+        for (idx, test) in tests.iter().enumerate() {
+            let actual = prog.statements.get(idx).unwrap();
+            match actual {
+                Node::ReturnStatement(actual) => {
+                    utils::assert_integer_type(actual.value.as_ref(), *test);
+                }
+                _ => {
+                    assert!(false, "expected Node::Return, got=.");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parsing_function_literal() {
+        struct FunctionTest<'a> {
+            params: Vec<&'a str>,
+            body_len: usize,
+            test: &'a str,
+        };
+
+        let tests = vec![
+            (
+                "fn () {}",
+                FunctionTest {
+                    params: vec![],
+                    body_len: 0,
+                    test: "fn () {  }",
+                },
+            ),
+            (
+                "fn(a) { 10; }",
+                FunctionTest {
+                    params: vec!["a"],
+                    body_len: 1,
+                    test: "fn (a) { 10 }",
+                },
+            ),
+            (
+                "fn(x, y) { let myVar = 0; return x + y + myVar; }",
+                FunctionTest {
+                    params: vec!["x", "y"],
+                    body_len: 2,
+                    test: "fn (x, y) { let myVar = 0; return ((x + y) + myVar); }",
+                },
+            ),
+        ];
+
+        for test in tests {
+            let input = test.0;
+            let test = test.1;
+            let (parser, prog) = utils::setup(&input);
+
+            assert_eq!(prog.to_string(), test.test);
+
+            let Node::Program(prog) = prog else {
+                assert!(false, "prog is not Node::Program");
+                return;
+            };
+
+            utils::check_parser_errors(&parser);
+
+            let Node::Function(f) = prog.statements.get(0).unwrap() else {
+                assert!(prog.statements.get(0).is_none(), "Expected prog.statements.len()=1, got=0");
+                return;
+            };
+
+            assert_eq!(test.params.len(), f.parameters.len());
+
+            let Node::BlockStatement(body) = f.body.as_ref() else {
+                assert!(prog.statements.get(0).is_none(), "Expected prog.statements[0] to be Node::BlockStatement, got=.");
+                return;
+            };
+
+            assert_eq!(test.body_len, body.statements.len());
+        }
+    }
+
+    #[test]
+    fn test_call_expression() {
+        let tests = vec![
+            ("a();", "a()"),
+            ("myFunc(a,b,c);", "myFunc(a, b, c)"),
+            (
+                "fn(x, y) { return x + y; }(10 + 2, -1);",
+                "fn (x, y) { return (x + y); }((10 + 2), (-1))",
+            ),
+        ];
+        for test in tests {
+            let input = test.0;
+            let test = test.1;
+            let (parser, prog) = utils::setup(&input);
+
+            assert_eq!(prog.to_string(), test);
+
+            let Node::Program(prog) = prog else {
+                assert!(false, "prog is not Node::Program");
+                return;
+            };
+
+            utils::check_parser_errors(&parser);
+        }
+    }
+
+    #[test]
+    fn test_precedence_correctness() {
+        assert!(true);
+        // TESTS FROM BOOK
+        let tests = vec![
+            ("-a * b", "((-a) * b)"),
+            ("!-a", "(!(-a))"),
+            ("a + b + c", "((a + b) + c)"),
+            ("a + b - c", "((a + b) - c)"),
+            ("a * b * c", "((a * b) * c)"),
+            ("a * b / c", "((a * b) / c)"),
+            ("a + b / c", "(a + (b / c))"),
+            ("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"),
+            ("3 + 4; -5 * 5", "(3 + 4)((-5) * 5)"),
+            ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"),
+            ("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"),
+            (
+                "3 + 4 * 5 == 3 * 1 + 4 * 5",
+                "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+            ),
+            (
+                "3 + 4 * 5 == 3 * 1 + 4 * 5",
+                "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+            ),
+        ];
+
+        for test in tests {
+            let input = test.0;
+            let test = test.1;
+            let (parser, prog) = utils::setup(&input);
+
+            assert_eq!(prog.to_string(), test);
+
+            let Node::Program(prog) = prog else {
+                assert!(false, "prog is not Node::Program");
+                return;
+            };
+
+            utils::check_parser_errors(&parser);
+        }
+    }
 
     mod utils {
         use super::*;
-        pub(super) fn setup_parser(input: &str) -> Parser {
-            let mut lexer = Lexer::new(input);
-            Parser::new(lexer)
+
+        pub(super) fn setup(input: &str) -> (Parser, Node) {
+            let lexer = lexer::Lexer::new(input);
+            let mut parser = Parser::new(lexer);
+            let prog = parser.parse_program();
+            (parser, prog)
+        }
+
+        pub(super) fn assert_program_len(prog: &Program, expected: usize) {
+            let actual_size = prog.statements.len();
+            assert_eq!(
+                actual_size, expected,
+                "prog.statements does not contain 2 elements, got={}",
+                actual_size
+            );
+        }
+
+        pub(super) fn check_parser_errors(parser: &Parser) {
+            if parser.errors.len() == 0 {
+                return;
+            }
+            let mut error_msg = String::new();
+            error_msg.push_str(format!("Parser has ${} errors\n", parser.errors.len()).as_str());
+
+            for err in &parser.errors {
+                error_msg.push_str(format!("parser error: {}", err).as_str());
+            }
+
+            assert!(false, "{}", error_msg);
+        }
+
+        pub(super) fn count_statements(stmts: &str) -> usize {
+            stmts.split(";").count() - 1
+        }
+
+        pub(super) fn assert_integer_type(node: &Node, expected_value: i32) {
+            match node {
+                Node::Int(value) => {
+                    assert_eq!(value.0, expected_value);
+                }
+                _ => {
+                    assert!(false, "expected Node::Int, got=Node::.");
+                }
+            }
         }
     }
 }
