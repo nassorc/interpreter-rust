@@ -1,4 +1,9 @@
-use std::{ borrow::Borrow, cell::{Ref, RefCell}, collections::HashMap, rc::Rc };
+use std::{
+    borrow::Borrow,
+    cell::{Ref, RefCell},
+    collections::HashMap,
+    rc::Rc,
+};
 
 use crate::parser::ast;
 
@@ -14,12 +19,12 @@ pub enum Object {
     Function(FunctionLiteralObject),
     Return(ReturnObject),
     ObjectRef(Rc<RefCell<Object>>),
-    Null
+    Null,
 }
 
 #[derive(Debug, Clone)]
 pub struct IntegerObject {
-    pub value: i32
+    pub value: i32,
 }
 
 impl ObjectVariant for IntegerObject {
@@ -30,7 +35,7 @@ impl ObjectVariant for IntegerObject {
 
 #[derive(Debug, Clone)]
 pub struct BooleanObject {
-    pub value: bool
+    pub value: bool,
 }
 
 impl ObjectVariant for BooleanObject {
@@ -41,7 +46,7 @@ impl ObjectVariant for BooleanObject {
 
 #[derive(Debug, Clone)]
 pub struct IdentiferObject {
-    pub value: String
+    pub value: String,
 }
 
 impl ObjectVariant for IdentiferObject {
@@ -65,7 +70,7 @@ impl ObjectVariant for FunctionLiteralObject {
 
 #[derive(Debug, Clone)]
 pub struct ReturnObject {
-    pub value: Rc<Object>
+    pub value: Rc<Object>,
 }
 
 impl ObjectVariant for ReturnObject {
@@ -74,5 +79,5 @@ impl ObjectVariant for ReturnObject {
     }
 }
 
-pub const TRUE: BooleanObject = BooleanObject{value: true};
-pub const FALSE: BooleanObject = BooleanObject{value: false};
+pub const TRUE: BooleanObject = BooleanObject { value: true };
+pub const FALSE: BooleanObject = BooleanObject { value: false };

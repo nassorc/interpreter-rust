@@ -2,19 +2,17 @@ pub mod ast;
 
 use std::{collections::HashMap, rc::Rc};
 
+use crate::{lexer, lexer::token};
 use ast::*;
-use crate::{
-    lexer,  
-    lexer::token,
-};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum PrecedenceType {
     LOWEST = 0,
+    EQUALS,
     LESSGREATER,
     ADD,
     PRODUCT,
-    CALL
+    CALL,
 }
 
 pub struct Parser {
@@ -26,11 +24,17 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(l: lexer::Lexer) -> Parser {
-        let mut parser = Parser { 
+        let mut parser = Parser {
             l,
             errors: vec![],
-            cur_token: token::Token{ token_type: token::EOF, literal: "\0".to_string() },
-            peek_token: token::Token{ token_type: token::EOF, literal: "\0".to_string() },
+            cur_token: token::Token {
+                token_type: token::EOF,
+                literal: "\0".to_string(),
+            },
+            peek_token: token::Token {
+                token_type: token::EOF,
+                literal: "\0".to_string(),
+            },
         };
 
         // advance tokens so that curToken contains the first token from the lexer
@@ -58,7 +62,7 @@ impl Parser {
                 program.statements.push(stmt);
             }
             self.next_token();
-        } 
+        }
 
         return Node::Program(program);
     }
@@ -71,15 +75,13 @@ impl Parser {
     // 3. Expression Statements - represents an any valid expression
     fn parse_statement(&mut self) -> Node {
         match self.cur_token.token_type {
-            token::LET => self.parse_let_statement().map_or(
-                Node::Nil,
-                |v| Node::LetStatement(v)
-            ),
-            token::RETURN => self.parse_return_statement().map_or(
-                Node::Nil, 
-                |v| Node::ReturnStatement(v)
-            ),
-            _ => self.parse_expression_statement()
+            token::LET => self
+                .parse_let_statement()
+                .map_or(Node::Nil, |v| Node::LetStatement(v)),
+            token::RETURN => self
+                .parse_return_statement()
+                .map_or(Node::Nil, |v| Node::ReturnStatement(v)),
+            _ => self.parse_expression_statement(),
         }
     }
 
@@ -105,47 +107,33 @@ impl Parser {
 
     fn parse_prefix_operation(&mut self) -> Node {
         match self.cur_token.token_type {
-            token::INT => self.parse_integer().map_or(
-                Node::Nil, 
-                |v| Node::Int(v)
-            ),
-            token::TRUE | token::FALSE => self.parse_boolean().map_or(
-                Node::Nil,
-                |v| Node::Boolean(v)
-            ),
-            token::IDENTIFIER => self.parse_identifier().map_or(
-                Node::Nil, 
-                |v| Node::Ident(v)
-            ),
-            token::FUNCTION => self.parse_function_literal().map_or(
-                Node::Nil, 
-                |v| Node::Function(v)
-            ),
-            token::MINUS | token::BANG => self.parse_prefix_expression().map_or(
-                Node::Nil, 
-                |v| Node::Prefix(v)
-            ),
-            token::IF => self.parse_if_expression().map_or(
-                Node::Nil, 
-                |v| Node::IfExpression(v)
-            ),
-            _ => Node::Nil
+            token::INT => self.parse_integer().map_or(Node::Nil, |v| Node::Int(v)),
+            token::TRUE | token::FALSE => {
+                self.parse_boolean().map_or(Node::Nil, |v| Node::Boolean(v))
+            }
+            token::IDENTIFIER => self
+                .parse_identifier()
+                .map_or(Node::Nil, |v| Node::Ident(v)),
+            token::FUNCTION => self
+                .parse_function_literal()
+                .map_or(Node::Nil, |v| Node::Function(v)),
+            token::MINUS | token::BANG => self
+                .parse_prefix_expression()
+                .map_or(Node::Nil, |v| Node::Prefix(v)),
+            token::IF => self
+                .parse_if_expression()
+                .map_or(Node::Nil, |v| Node::IfExpression(v)),
+            _ => Node::Nil,
         }
     }
 
     fn parse_if_expression(&mut self) -> Result<IfExpression, String> {
-        // if (<condition>) { <consequence> } else { <alternative> }
-        //    C P
-
         if !self.expect_peek(token::LPAREN) {
             return Err(String::from("Missing ("));
         }
 
         self.next_token();
         let condition = self.parse_expression(PrecedenceType::LOWEST);
-
-        // dbg!(&condition);
-        // dbg!(&self.peek_token);
 
         if !self.expect_peek(token::RPAREN) {
             return Err(String::from("Missing ("));
@@ -166,11 +154,7 @@ impl Parser {
             self.next_token();
         }
 
-        // else { }
-        //    c p
-
         let mut alternative: Vec<Node> = vec![];
-
 
         if self.peek_token_is(token::ELSE) {
             self.next_token();
@@ -190,44 +174,37 @@ impl Parser {
             }
         }
 
-
-        // dbg!(&consequence);
-
-
-        // dbg!("NEXT AFTER CONSEQUENCE");
-        // dbg!(&self.cur_token);
-        // dbg!(&self.peek_token);
-        
-
         dbg!(Ok(IfExpression {
             condition: Rc::new(condition),
             consequence,
             alternative
         }))
-
-
-        // Err(String::from("testing"))
     }
 
     fn call_infix_parser(&mut self, left: &Node) -> Node {
         match self.cur_token.token_type {
-            token::PLUS | token::ASTERISK => self.parse_infix_expression(&left).map_or(
-                Node::Nil, 
-                |v| Node::Infix(v)
-            ),
-            token::LPAREN => self.parse_call_expression(&left).map_or(
-                Node::Nil, 
-                |v| Node::CallExpression(v)
-            ),
-            _ => Node::Nil
+            token::PLUS
+            | token::MINUS
+            | token::ASTERISK
+            | token::SLASH
+            | token::EQ
+            | token::NOTEQ
+            | token::LT
+            | token::GT => self
+                .parse_infix_expression(&left)
+                .map_or(Node::Nil, |v| Node::Infix(v)),
+            token::LPAREN => self
+                .parse_call_expression(&left)
+                .map_or(Node::Nil, |v| Node::CallExpression(v)),
+            _ => Node::Nil,
         }
     }
 
     fn parse_let_statement(&mut self) -> Option<LetStatement> {
-        self.next_token();  // advance token to identifier
+        self.next_token(); // advance token to identifier
         let name = Identifier(self.cur_token.literal.clone());
 
-        if !self.expect_peek(token::ASSIGN) { 
+        if !self.expect_peek(token::ASSIGN) {
             return None;
         }
 
@@ -241,20 +218,20 @@ impl Parser {
 
         Some(LetStatement {
             name,
-            value: Rc::new(value)
+            value: Rc::new(value),
         })
     }
 
     fn parse_return_statement(&mut self) -> Option<ReturnStatement> {
         self.next_token();
         let return_value = self.parse_expression(PrecedenceType::LOWEST);
-        Some(ReturnStatement{
-            value: Rc::new(return_value)
+        Some(ReturnStatement {
+            value: Rc::new(return_value),
         })
     }
 
     fn parse_call_expression(&mut self, left: &Node) -> Result<CallExpression, String> {
-        self.next_token(); // cur_token is '(' 
+        self.next_token(); // cur_token is '('
 
         let mut arguments: Vec<Node> = vec![];
         // if function has arguments
@@ -271,13 +248,16 @@ impl Parser {
                 let arg = self.parse_expression(PrecedenceType::LOWEST);
                 arguments.push(arg);
             }
-        } 
 
-        if !self.expect_peek(token::RPAREN) {
-            return Err(String::from("Missing )"));
+            if !self.expect_peek(token::RPAREN) {
+                return Err(String::from("Missing )"));
+            }
         }
 
-        Ok(CallExpression { arguments, function: Rc::new(left.clone())})
+        Ok(CallExpression {
+            arguments,
+            function: Rc::new(left.clone()),
+        })
     }
 
     fn parse_function_literal(&mut self) -> Option<FunctionLiteral> {
@@ -306,7 +286,6 @@ impl Parser {
         }
 
         if !self.expect_peek(token::LBRACE) {
-
             return None;
         }
 
@@ -321,17 +300,16 @@ impl Parser {
             self.next_token();
         }
 
-        Some(FunctionLiteral{
+        Some(FunctionLiteral {
             parameters: parameters,
-            body: Rc::new(Node::BlockStatement(BlockStatement {
-                statements: stmts
-            }))
+            body: Rc::new(Node::BlockStatement(BlockStatement { statements: stmts })),
         })
     }
 
     fn parse_integer(&self) -> Result<Integer, String> {
         let value = self
-            .cur_token.literal
+            .cur_token
+            .literal
             .trim()
             .parse::<i32>()
             .expect("Cannot parse self.curk_token.literal as i32");
@@ -353,7 +331,7 @@ impl Parser {
 
         Ok(PrefixExpression {
             op: cur_tk.literal.clone(),
-            right: Rc::new(right)
+            right: Rc::new(right),
         })
     }
 
@@ -378,7 +356,10 @@ impl Parser {
             return true;
         }
         // if self.cur_token is not expected tk, push error
-        self.errors.push(format!("Expected peek_token to be {}, got {}", tk, self.peek_token.token_type));
+        self.errors.push(format!(
+            "Expected peek_token to be {}, got {}",
+            tk, self.peek_token.token_type
+        ));
         return false;
     }
 
@@ -400,10 +381,12 @@ impl Parser {
 
     fn get_token_precedence(&self, tt: token::TokenType) -> PrecedenceType {
         match tt {
-            token::PLUS | token::MINUS => PrecedenceType::ADD,
-            token::ASTERISK | token::SLASH => PrecedenceType::PRODUCT,
             token::LPAREN => PrecedenceType::CALL,
-            _ => PrecedenceType::LOWEST
+            token::ASTERISK | token::SLASH => PrecedenceType::PRODUCT,
+            token::PLUS | token::MINUS => PrecedenceType::ADD,
+            token::LT | token::GT => PrecedenceType::LESSGREATER,
+            token::EQ | token::NOTEQ => PrecedenceType::EQUALS,
+            _ => PrecedenceType::LOWEST,
         }
     }
 

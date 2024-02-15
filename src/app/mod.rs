@@ -1,11 +1,13 @@
 use crate::*;
 pub struct App {
-    input: String
+    input: String,
 }
 
 impl App {
     pub fn new<T: Into<String>>(input: T) -> Self {
-        App { input: input.into() }
+        App {
+            input: input.into(),
+        }
     }
 
     pub fn execute(&self) -> Option<Object> {

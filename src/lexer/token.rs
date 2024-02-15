@@ -30,8 +30,6 @@ pub const GT: &str = ">";
 pub const EQ: &str = "==";
 pub const NOTEQ: &str = "!=";
 
-
-
 #[derive(Debug, Clone)]
 pub struct Token {
     pub token_type: TokenType,
@@ -39,28 +37,28 @@ pub struct Token {
 }
 
 impl Token {
-  pub fn new(token_type: TokenType, literal: &str) -> Self {
-    Self {
-      token_type,
-      literal: literal.to_string()
+    pub fn new(token_type: TokenType, literal: &str) -> Self {
+        Self {
+            token_type,
+            literal: literal.to_string(),
+        }
     }
-  }
 }
 
 pub fn get_identifier(ident: &str) -> TokenType {
-  let keyword_map: HashMap<&'static str, TokenType> = HashMap::from([
-    ("let", LET),
-    ("fn", FUNCTION),
-    ("return", RETURN),
-    ("if", IF),
-    ("else", ELSE),
-    ("true", TRUE),
-    ("false", FALSE),
-  ]);
+    let keyword_map: HashMap<&'static str, TokenType> = HashMap::from([
+        ("let", LET),
+        ("fn", FUNCTION),
+        ("return", RETURN),
+        ("if", IF),
+        ("else", ELSE),
+        ("true", TRUE),
+        ("false", FALSE),
+    ]);
 
-  if keyword_map.contains_key(ident) {
-    return keyword_map.get(ident).unwrap();
-  }
+    if keyword_map.contains_key(ident) {
+        return keyword_map.get(ident).unwrap();
+    }
 
-  return IDENTIFIER;
+    return IDENTIFIER;
 }

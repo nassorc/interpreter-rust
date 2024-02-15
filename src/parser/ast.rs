@@ -149,8 +149,14 @@ mod tests {
             ("a + 10;", "(a + 10)"),
             ("let a = 100;", "let a = 100;"),
             ("return true;", "return true;"),
-            ("if (10) { return 10; } else { return 5; }", "if (10) { return 10; } else { return 5; }"),
-            ("let myFunc = fn(a, b) { return -10 + 2; };", "let myFunc = fn (a, b) { return ((-10) + 2); };"),
+            (
+                "if (10) { return 10; } else { return 5; }",
+                "if (10) { return 10; } else { return 5; }",
+            ),
+            (
+                "let myFunc = fn(a, b) { return -10 + 2; };",
+                "let myFunc = fn (a, b) { return ((-10) + 2); };",
+            ),
             ("myFunc(-10, false);", "myFunc((-10), false)"),
         ];
 
