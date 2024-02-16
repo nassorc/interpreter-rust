@@ -168,8 +168,6 @@ impl Parser {
 
         if self.peek_token_is(token::ELSE) {
             self.next_token();
-            dbg!(&self.cur_token);
-            dbg!(&self.peek_token);
             if !self.expect_peek(token::LBRACE) {
                 return Err(String::from("Missing ("));
             }
@@ -184,11 +182,11 @@ impl Parser {
             }
         }
 
-        dbg!(Ok(IfExpression {
+        Ok(IfExpression {
             condition: Rc::new(condition),
             consequence,
-            alternative
-        }))
+            alternative,
+        })
     }
 
     fn call_infix_parser(&mut self, left: &Node) -> Node {
