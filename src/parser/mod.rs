@@ -124,6 +124,15 @@ impl Parser {
             token::IF => self
                 .parse_if_expression()
                 .map_or(Node::Nil, |v| Node::IfExpression(v)),
+            token::LPAREN => {
+                self.next_token();
+                let group = self.parse_expression(PrecedenceType::LOWEST);
+                if !self.expect_peek(token::RPAREN) {
+                    return Node::Nil;
+                }
+
+                return group;
+            }
             _ => Node::Nil,
         }
     }
@@ -159,8 +168,6 @@ impl Parser {
 
         if self.peek_token_is(token::ELSE) {
             self.next_token();
-            dbg!(&self.cur_token);
-            dbg!(&self.peek_token);
             if !self.expect_peek(token::LBRACE) {
                 return Err(String::from("Missing ("));
             }
@@ -175,11 +182,11 @@ impl Parser {
             }
         }
 
-        dbg!(Ok(IfExpression {
+        Ok(IfExpression {
             condition: Rc::new(condition),
             consequence,
-            alternative
-        }))
+            alternative,
+        })
     }
 
     fn call_infix_parser(&mut self, left: &Node) -> Node {
@@ -399,6 +406,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::{lexer::Lexer, *};
+    use crate::utils::setup;
+
     #[test]
     fn test_parsing_integers() {
         let input = "
@@ -406,7 +415,7 @@ mod tests {
             10;
         ";
         let input_size = utils::count_statements(input);
-        let (parser, prog) = utils::setup(&input);
+        let (parser, prog) = setup(&input);
 
         let Node::Program(prog) = prog else {
             assert!(false, "prog is not Node::Program");
@@ -431,7 +440,7 @@ mod tests {
             false;
         ";
         let input_size = utils::count_statements(input);
-        let (parser, prog) = utils::setup(&input);
+        let (parser, prog) = setup(&input);
 
         let Node::Program(prog) = prog else {
             assert!(false, "prog is not Node::Program");
@@ -463,7 +472,7 @@ mod tests {
             myVar;
         ";
         let input_size = utils::count_statements(input);
-        let (parser, prog) = utils::setup(&input);
+        let (parser, prog) = setup(&input);
 
         let Node::Program(prog) = prog else {
             assert!(false, "prog is not Node::Program");
@@ -495,7 +504,7 @@ mod tests {
             !10;
         ";
         let input_size = utils::count_statements(input);
-        let (parser, prog) = utils::setup(&input);
+        let (parser, prog) = setup(&input);
 
         let Node::Program(prog) = prog else {
             assert!(false, "prog is not Node::Program");
@@ -536,7 +545,7 @@ mod tests {
             10 != 10;
         ";
         let input_size = utils::count_statements(input);
-        let (parser, prog) = utils::setup(&input);
+        let (parser, prog) = setup(&input);
 
         let Node::Program(prog) = prog else {
             assert!(false, "prog is not Node::Program");
@@ -581,7 +590,7 @@ mod tests {
         let a = 10;
         ";
         let input_size = utils::count_statements(input);
-        let (parser, prog) = utils::setup(&input);
+        let (parser, prog) = setup(&input);
 
         let Node::Program(prog) = prog else {
             assert!(false, "prog is not Node::Program");
@@ -613,7 +622,7 @@ mod tests {
         return 10;
         ";
         let input_size = utils::count_statements(input);
-        let (parser, prog) = utils::setup(&input);
+        let (parser, prog) = setup(&input);
 
         let Node::Program(prog) = prog else {
             assert!(false, "prog is not Node::Program");
@@ -676,7 +685,7 @@ mod tests {
         for test in tests {
             let input = test.0;
             let test = test.1;
-            let (parser, prog) = utils::setup(&input);
+            let (parser, prog) = setup(&input);
 
             assert_eq!(prog.to_string(), test.test);
 
@@ -716,7 +725,7 @@ mod tests {
         for test in tests {
             let input = test.0;
             let test = test.1;
-            let (parser, prog) = utils::setup(&input);
+            let (parser, prog) = setup(&input);
 
             assert_eq!(prog.to_string(), test);
 
@@ -736,11 +745,13 @@ mod tests {
         let tests = vec![
             ("-a * b", "((-a) * b)"),
             ("!-a", "(!(-a))"),
+            ("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"),
             ("a + b + c", "((a + b) + c)"),
             ("a + b - c", "((a + b) - c)"),
             ("a * b * c", "((a * b) * c)"),
             ("a * b / c", "((a * b) / c)"),
             ("a + b / c", "(a + (b / c))"),
+            ("a * (b + c)", "(a * (b + c))"),
             ("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"),
             ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"),
             ("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"),
@@ -757,7 +768,7 @@ mod tests {
         for test in tests {
             let input = test.0;
             let test = test.1;
-            let (parser, prog) = utils::setup(&input);
+            let (parser, prog) = setup(&input);
 
             assert_eq!(prog.to_string(), test);
 
@@ -772,13 +783,6 @@ mod tests {
 
     mod utils {
         use super::*;
-
-        pub(super) fn setup(input: &str) -> (Parser, Node) {
-            let lexer = lexer::Lexer::new(input);
-            let mut parser = Parser::new(lexer);
-            let prog = parser.parse_program();
-            (parser, prog)
-        }
 
         pub(super) fn assert_program_len(prog: &Program, expected: usize) {
             let actual_size = prog.statements.len();

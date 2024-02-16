@@ -28,8 +28,8 @@ impl Environment {
 
     /// Returns a refernce to an `Object`` corresponding to a key.
     /// If key is not defined in the current environment, it will
-    /// then recursively call `get` to retrieve the value from its
-    /// outer environment.
+    /// then recursively call `self.outer.get`, and attempt  to
+    /// retrieve the value from its outer environment.
     pub fn get(&self, k: String) -> Option<Rc<RefCell<Object>>> {
         self.store.get(&k).map_or_else(
             || {
