@@ -1,31 +1,58 @@
 #![allow(unused)]
 
-mod token;
 mod lexer;
 mod parser;
-mod ast;
+mod evaluator;
+mod app;
 
-use std::collections::HashMap;
+use std::ops::Deref;
+use std::rc::Rc;
+use std::cell::RefCell;
 
-use token::Token;
+use app::App;
 use lexer::Lexer;
 use parser::Parser;
+use evaluator::{environment::Environment, object::Object, *};
+
 
 fn main() {
-    let mut lexer = Lexer::new("hello");
-    let mut parser = Parser::new(lexer);
+    
+    dbg!(&App::new("
+        let global = 100;
+        let a = fn(x) { 
+            if (false) {
+                return 0;
+            } else {
+                let a = 10; 
+                return a + x + global; 
+            }
+        };
+        a(1) + 4
+    ").execute());
 
-    let prog = parser.parse_program();
-    println!("len: {}", prog.statements.len());
 
-    if parser.errors.len() > 0 {
-        for err in parser.errors {
-            println!("{}", err);
-        }
-    }
+    // let input = "let a = if (true) { 10 + 2; 2; } else { 5 }";
+    // let input = "let a = if (false) { 10 + 2; return 99; } else { return 55; }; a;";
+    // let input = "
+    // let global = 100;
+    // let a = fn(x) { 
+    //     if (false) {
+    //         return 0;
+    //     } else {
+    //         let a = 10; 
+    //         return a + x + global; 
+    //     }
+    // };
+    // a(1) + 4
+    // ";
+    // let lexer = Lexer::new(input);
+    // let mut parser = Parser::new(lexer);
 
-    for node in prog.statements {
-        dbg!(&node);
-    }
+    // let prog = parser.parse_program();
+    // let mut env = Environment::new();
 
+    // dbg!(&prog);
+    // dbg!(&env);
+    // dbg!(eval(&prog, Rc::clone(&env)));
 }
+

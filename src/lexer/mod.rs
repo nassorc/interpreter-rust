@@ -1,4 +1,5 @@
-use crate::token;
+pub mod token;
+// use crate::token;
 #[derive(Debug)]
 pub struct Lexer {
     pub input: String,
@@ -46,23 +47,21 @@ impl Lexer {
                 } else {
                     self.new_token(token::ASSIGN, self.ch.encode_utf8(&mut tmp))
                 }
-            },
+            }
             '!' => {
                 if self.peek_char_is('=') {
                     self.read_char();
                     self.new_token(token::NOTEQ, "!=")
-                }
-                else {
+                } else {
                     self.new_token(token::BANG, self.ch.encode_utf8(&mut tmp))
                 }
-            },
+            }
             _ => {
                 if self.is_letter() {
                     let identifier = self.read_identifier();
                     let token_type = token::get_identifier(&identifier);
                     return self.new_token(token_type, &identifier);
-                } 
-                else if self.is_digit() {
+                } else if self.is_digit() {
                     let number = self.read_number();
                     return self.new_token(token::INT, &number);
                 }
@@ -137,7 +136,7 @@ mod test {
 
     struct ExpectedToken {
         token: token::TokenType,
-        literal: String
+        literal: String,
     }
 
     #[test]
@@ -152,28 +151,94 @@ mod test {
         ";
 
         let tests: Vec<ExpectedToken> = vec![
-            ExpectedToken{ token: token::PLUS, literal: "+".to_string()},
-            ExpectedToken{ token: token::MINUS, literal: "-".to_string()},
-            ExpectedToken{ token: token::ASTERISK, literal: "*".to_string()},
-            ExpectedToken{ token: token::SLASH, literal: "/".to_string()},
-            ExpectedToken{ token: token::COMMA, literal: ",".to_string()},
-            ExpectedToken{ token: token::SEMICOLON, literal: ";".to_string()},
-            ExpectedToken{ token: token::BANG, literal: "!".to_string()},
-            ExpectedToken{ token: token::LT, literal: "<".to_string()},
-            ExpectedToken{ token: token::GT, literal: ">".to_string()},
-            ExpectedToken{ token: token::ASSIGN, literal: "=".to_string()},
-            ExpectedToken{ token: token::EQ, literal: "==".to_string()},
-            ExpectedToken{ token: token::NOTEQ, literal: "!=".to_string()},
-            ExpectedToken{ token: token::LPAREN, literal: "(".to_string()},
-            ExpectedToken{ token: token::RPAREN, literal: ")".to_string()},
-            ExpectedToken{ token: token::LBRACE, literal: "{".to_string()},
-            ExpectedToken{ token: token::RBRACE, literal: "}".to_string()},
-            ExpectedToken{ token: token::FUNCTION, literal: "fn".to_string()},
-            ExpectedToken{ token: token::LET, literal: "let".to_string()},
-            ExpectedToken{ token: token::RETURN, literal: "return".to_string()},
-            ExpectedToken{ token: token::IDENTIFIER, literal: "myVar".to_string()},
-            ExpectedToken{ token: token::INT, literal: "10".to_string()},
-            ExpectedToken{ token: token::EOF, literal: "\0".to_string()},
+            ExpectedToken {
+                token: token::PLUS,
+                literal: "+".to_string(),
+            },
+            ExpectedToken {
+                token: token::MINUS,
+                literal: "-".to_string(),
+            },
+            ExpectedToken {
+                token: token::ASTERISK,
+                literal: "*".to_string(),
+            },
+            ExpectedToken {
+                token: token::SLASH,
+                literal: "/".to_string(),
+            },
+            ExpectedToken {
+                token: token::COMMA,
+                literal: ",".to_string(),
+            },
+            ExpectedToken {
+                token: token::SEMICOLON,
+                literal: ";".to_string(),
+            },
+            ExpectedToken {
+                token: token::BANG,
+                literal: "!".to_string(),
+            },
+            ExpectedToken {
+                token: token::LT,
+                literal: "<".to_string(),
+            },
+            ExpectedToken {
+                token: token::GT,
+                literal: ">".to_string(),
+            },
+            ExpectedToken {
+                token: token::ASSIGN,
+                literal: "=".to_string(),
+            },
+            ExpectedToken {
+                token: token::EQ,
+                literal: "==".to_string(),
+            },
+            ExpectedToken {
+                token: token::NOTEQ,
+                literal: "!=".to_string(),
+            },
+            ExpectedToken {
+                token: token::LPAREN,
+                literal: "(".to_string(),
+            },
+            ExpectedToken {
+                token: token::RPAREN,
+                literal: ")".to_string(),
+            },
+            ExpectedToken {
+                token: token::LBRACE,
+                literal: "{".to_string(),
+            },
+            ExpectedToken {
+                token: token::RBRACE,
+                literal: "}".to_string(),
+            },
+            ExpectedToken {
+                token: token::FUNCTION,
+                literal: "fn".to_string(),
+            },
+            ExpectedToken {
+                token: token::LET,
+                literal: "let".to_string(),
+            },
+            ExpectedToken {
+                token: token::RETURN,
+                literal: "return".to_string(),
+            },
+            ExpectedToken {
+                token: token::IDENTIFIER,
+                literal: "myVar".to_string(),
+            },
+            ExpectedToken {
+                token: token::INT,
+                literal: "10".to_string(),
+            },
+            ExpectedToken {
+                token: token::EOF,
+                literal: "\0".to_string(),
+            },
         ];
 
         let mut lexer = Lexer::new(input);
@@ -184,5 +249,4 @@ mod test {
             assert_eq!(tt.literal, tk.literal);
         }
     }
-
 }
