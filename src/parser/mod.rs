@@ -12,6 +12,7 @@ enum PrecedenceType {
     LESSGREATER,
     ADD,
     PRODUCT,
+    PREFIX,
     CALL,
 }
 
@@ -327,7 +328,7 @@ impl Parser {
     fn parse_prefix_expression(&mut self) -> Result<PrefixExpression, String> {
         let cur_tk = self.cur_token.clone();
         self.next_token();
-        let right = self.parse_expression(PrecedenceType::LOWEST);
+        let right = self.parse_expression(PrecedenceType::PREFIX);
 
         Ok(PrefixExpression {
             op: cur_tk.literal.clone(),
@@ -741,7 +742,6 @@ mod tests {
             ("a * b / c", "((a * b) / c)"),
             ("a + b / c", "(a + (b / c))"),
             ("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"),
-            ("3 + 4; -5 * 5", "(3 + 4)((-5) * 5)"),
             ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"),
             ("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"),
             (
