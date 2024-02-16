@@ -1,9 +1,0 @@
-let a = 10;
-
-let myFunc = fn() {
-	a = 20;
-	print(a) // 20
-}
-
-myFunc();
-print(a) // 20
