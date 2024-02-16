@@ -124,6 +124,15 @@ impl Parser {
             token::IF => self
                 .parse_if_expression()
                 .map_or(Node::Nil, |v| Node::IfExpression(v)),
+            token::LPAREN => {
+                self.next_token();
+                let group = self.parse_expression(PrecedenceType::LOWEST);
+                if !self.expect_peek(token::RPAREN) {
+                    return Node::Nil;
+                }
+
+                return group;
+            }
             _ => Node::Nil,
         }
     }
@@ -738,11 +747,13 @@ mod tests {
         let tests = vec![
             ("-a * b", "((-a) * b)"),
             ("!-a", "(!(-a))"),
+            ("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"),
             ("a + b + c", "((a + b) + c)"),
             ("a + b - c", "((a + b) - c)"),
             ("a * b * c", "((a * b) * c)"),
             ("a * b / c", "((a * b) / c)"),
             ("a + b / c", "(a + (b / c))"),
+            ("a * (b + c)", "(a * (b + c))"),
             ("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"),
             ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"),
             ("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"),
