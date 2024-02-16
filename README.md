@@ -3,11 +3,11 @@
 ## Language Specficiation
 ## examples
 ## Tasks
-- [] Add strings
-- [] Add built in functions
-  - [] input / output 
-  - [] len 
-- [] Arrays
+- [ ] Add strings
+- [ ] Add built in functions
+  - [ ] input / output 
+  - [ ] len 
+- [ ] Arrays
 - [x] Add a to_string AST method 
 
 - [x] add tests for the  parser
