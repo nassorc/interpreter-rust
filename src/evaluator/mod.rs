@@ -143,8 +143,6 @@ fn eval_infix(infix: &InfixExpression, env: Rc<RefCell<Environment>>) -> Option<
     let left = eval(&infix.left, Rc::clone(&env))?;
     let right = eval(&infix.right, Rc::clone(&env))?;
 
-    //
-
     match (left, right, infix.op.as_str()) {
         (Object::Integer(left), Object::Integer(right), _) => {
             eval_integer_infix_opr(&infix.op, left, right)

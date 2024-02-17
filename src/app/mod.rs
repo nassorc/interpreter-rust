@@ -1,4 +1,10 @@
-use crate::*;
+use crate::{
+    evaluator::object::Object,
+    evaluator::{environment::Environment, eval},
+    lexer::Lexer,
+    parser::Parser,
+};
+use std::rc::Rc;
 pub struct App {
     input: String,
 }
