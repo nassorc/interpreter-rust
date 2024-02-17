@@ -33,13 +33,10 @@ impl Environment {
     pub fn get(&self, k: String) -> Option<Rc<RefCell<Object>>> {
         self.store.get(&k).map_or_else(
             || {
-                Some(
-                    Rc::clone(&self.outer.as_ref().unwrap())
-                        .as_ref()
-                        .borrow()
-                        .get(k.clone())
-                        .unwrap(),
-                )
+                match &self.outer.as_ref() {
+                    Some(v) => Some(Rc::clone(*v).as_ref().borrow().get(k.clone()).unwrap()),
+                    None => None,
+                }
             },
             |v| Some(Rc::clone(v)),
         )
