@@ -323,6 +323,46 @@ mod tests {
     }
 
     #[test]
+    fn test_variable_environment_bindings() {
+        let tests = vec![
+            (
+                "
+            let global = 100;
+            let a = 5;
+
+            let myFunc = fn (a) { return a + global };
+            myFunc(10);
+            ",
+                110,
+            ),
+            (
+                "
+            let global = 100;
+            let a = 5;
+
+            let myFunc = fn (a) { return a + global };
+            myFunc(a);
+            ",
+                105,
+            ),
+        ];
+
+        for (input, expected) in tests {
+            let (parser, prog) = setup(input);
+            let env = Environment::new();
+            let result = eval(&prog, env).expect(
+                format!("expected evaluation to result in the value Some({expected}), got None",)
+                    .as_str(),
+            );
+            let Object::Integer(actual) = result else {
+                assert!(false, "expected Object::Integer, got=.");
+                return;
+            };
+            assert_eq!(actual.value, expected);
+        }
+    }
+
+    #[test]
     fn test_eval_return_statement() {
         let tests = vec![("return 5;", 5), ("return 5 * 2;", 10)];
 
