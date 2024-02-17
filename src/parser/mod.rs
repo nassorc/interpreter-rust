@@ -531,7 +531,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parsing_infix_expressions() {
+    fn test_parsing_integer_infix_expressions() {
         let input = "
             10 + 5;
             10 - 5;
@@ -576,6 +576,41 @@ mod tests {
 
                     utils::assert_integer_type(&actual.left.as_ref(), test.0);
                     utils::assert_integer_type(&actual.right.as_ref(), test.2);
+                }
+                _ => {
+                    assert!(false, "expected Node::Ident, got=.");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_parsing_boolean_infix_expressions() {
+        let input = "
+            true == true;
+            true != false;
+        ";
+        let input_size = utils::count_statements(input);
+        let (parser, prog) = setup(&input);
+
+        let Node::Program(prog) = prog else {
+            assert!(false, "prog is not Node::Program");
+            return;
+        };
+
+        utils::check_parser_errors(&parser);
+        utils::assert_program_len(&prog, input_size);
+
+        let tests = vec![(true, "==", true), (true, "!=", false)];
+
+        for (idx, test) in tests.iter().enumerate() {
+            let actual = prog.statements.get(idx).unwrap();
+            match actual {
+                Node::Infix(actual) => {
+                    assert_eq!(&actual.op, test.1);
+
+                    utils::assert_boolean_type(&actual.left.as_ref(), test.0);
+                    utils::assert_boolean_type(&actual.right.as_ref(), test.2);
                 }
                 _ => {
                     assert!(false, "expected Node::Ident, got=.");
@@ -818,6 +853,17 @@ mod tests {
                 }
                 _ => {
                     assert!(false, "expected Node::Int, got=Node::.");
+                }
+            }
+        }
+
+        pub(super) fn assert_boolean_type(node: &Node, expected_value: bool) {
+            match node {
+                Node::Boolean(value) => {
+                    assert_eq!(value.0, expected_value);
+                }
+                _ => {
+                    assert!(false, "expected Node::Boolean, got=Node::.");
                 }
             }
         }
